@@ -81,6 +81,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean isEcmwfAuto = true;
     private boolean isUpdatingUi = false;
 
+    // Last known coordinate for real satellite fetching
+    private double currentLat = 38.998;
+    private double currentLon = 117.315;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -89,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         setupListeners();
         requestLocationAndFetchEcmwf();
+        fetchRealSatelliteMap(currentLat, currentLon);
         updateSimulation();
     }
 
@@ -145,7 +150,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        // Bottle preset selection (500mL Mini, 1.25L, 1.50L, 2.00L)
         rgBottlePreset.setOnCheckedChangeListener((group, checkedId) -> {
             if (isUpdatingUi) return;
             if (checkedId == R.id.rb_spec_500) {
@@ -158,7 +162,6 @@ public class MainActivity extends AppCompatActivity {
                 RocketPhysics.applyBottlePreset(config, 3);
             }
 
-            // Sync Cd seekbar and water seekbar max
             isUpdatingUi = true;
             sbCd.setProgress((int) Math.round((config.dragCoefficient - 0.15) * 100.0));
             sbWater.setMax((int) (config.bottleVolumeL * 1000.0 * 0.70));
@@ -168,7 +171,6 @@ public class MainActivity extends AppCompatActivity {
             updateSimulation();
         });
 
-        // Drag Coefficient Cd seekbar: 0.15 to 0.70 -> max 55
         sbCd.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -180,7 +182,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Pressure seekbar: 1.0 to 8.0 bar -> progress 0 to 70
         sbPressure.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -192,7 +193,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Water seekbar: ml
         sbWater.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -204,7 +204,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Nozzle selection
         rgNozzle.setOnCheckedChangeListener((group, checkedId) -> {
             if (isUpdatingUi) return;
             if (checkedId == R.id.rb_nozzle_21) {
@@ -215,7 +214,6 @@ public class MainActivity extends AppCompatActivity {
             updateSimulation();
         });
 
-        // Launch pitch angle: 30 to 85 deg -> progress 0 to 55
         sbAngle.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -227,7 +225,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Launch True North Heading: 0 to 360 deg
         sbHeading.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -240,7 +237,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Launch yaw aiming offset angle: -25 to +25 deg -> progress 0 to 50, center 25
         sbYaw.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -252,7 +248,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Wind mode toggle
         rgWindMode.setOnCheckedChangeListener((group, checkedId) -> {
             isEcmwfAuto = (checkedId == R.id.rb_wind_ecmwf);
             sbWindSpeed.setEnabled(!isEcmwfAuto);
@@ -262,7 +257,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Wind speed seekbar: 0.0 to 15.0 m/s -> progress 0 to 150
         sbWindSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -274,7 +268,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Meteo wind direction angle seekbar: 0 to 360 deg
         sbWindAngle.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -287,19 +280,14 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Location & ECMWF triggers
         btnRefreshLocation.setOnClickListener(v -> requestLocationAndFetchEcmwf());
         chipEcmwf.setOnClickListener(v -> requestLocationAndFetchEcmwf());
 
-        // Target inverse solver button
         btnSolveTarget.setOnClickListener(v -> handleSolveTarget());
-
-        // Apply solve result button
         btnApplySolve.setOnClickListener(v -> handleApplySolve());
     }
 
     private void recalculateRelativeWind() {
-        // relativeAngle = (meteoWind - launchHeading + 360) % 360
         config.windAngleDeg = (config.meteoWindDirectionDeg - config.launchHeadingDeg + 360.0) % 360.0;
     }
 
@@ -321,8 +309,7 @@ public class MainActivity extends AppCompatActivity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 executeLocationEcmwfFetch();
             } else {
-                // EXPLICIT FAILURE REPORTING (as instructed by user)
-                viewEcmwfDot.setBackgroundColor(0xFFF43F5E); // Red
+                viewEcmwfDot.setBackgroundColor(0xFFF43F5E);
                 tvEcmwfStatus.setText("ECMWF: 获取失败(无权限)");
                 Toast.makeText(this, "定位权限被拒绝，无法获取当前位置风速", Toast.LENGTH_SHORT).show();
             }
@@ -331,13 +318,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void executeLocationEcmwfFetch() {
         tvEcmwfStatus.setText("当前定位同步中...");
-        viewEcmwfDot.setBackgroundColor(0xFFFBBF24); // Amber
+        viewEcmwfDot.setBackgroundColor(0xFFFBBF24);
 
         WeatherService.fetchEcmwfByDeviceLocation(this, new WeatherService.WeatherCallback() {
             @Override
             public void onSuccess(WeatherService.WeatherData data) {
-                viewEcmwfDot.setBackgroundColor(0xFF34D399); // Green
+                viewEcmwfDot.setBackgroundColor(0xFF34D399);
                 tvEcmwfStatus.setText(String.format(Locale.US, "ECMWF: %.1fm/s · %s", data.windSpeedMs, data.locationName));
+
+                currentLat = data.latitude;
+                currentLon = data.longitude;
+                fetchRealSatelliteMap(currentLat, currentLon);
 
                 if (isEcmwfAuto) {
                     isUpdatingUi = true;
@@ -355,10 +346,27 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(String errorMsg) {
-                // Explicitly report failure on UI!
-                viewEcmwfDot.setBackgroundColor(0xFFF43F5E); // Red
+                viewEcmwfDot.setBackgroundColor(0xFFF43F5E);
                 tvEcmwfStatus.setText("ECMWF: 获取失败");
                 Toast.makeText(MainActivity.this, "气象风速获取失败: " + errorMsg, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /**
+     * Real-time fetch satellite imagery from open map service (ESRI World Imagery)
+     */
+    private void fetchRealSatelliteMap(double lat, double lon) {
+        SatelliteMapFetcher.fetchSatelliteMap(this, lat, lon, new SatelliteMapFetcher.SatelliteCallback() {
+            @Override
+            public void onSuccess(SatelliteMapFetcher.SatelliteMapResult result) {
+                trajectoryView.setRealSatelliteMap(result);
+                Toast.makeText(MainActivity.this, "真实卫星底图加载完成", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String errorMsg) {
+                // If offline or failed, user can still use procedural satellite ground or grid
             }
         });
     }
@@ -379,7 +387,6 @@ public class MainActivity extends AppCompatActivity {
         recalculateRelativeWind();
         RocketPhysics.SimResult res = RocketPhysics.simulate(config);
 
-        // Update 5 HUD Metrics
         hudRange.setText(String.format(Locale.US, "%.1fm", res.rangeM));
         String driftSign = (res.lateralDriftM >= 0) ? "+" : "-";
         hudDrift.setText(String.format(Locale.US, "%s%.1fm", driftSign, Math.abs(res.lateralDriftM)));
@@ -387,7 +394,6 @@ public class MainActivity extends AppCompatActivity {
         hudSpeed.setText(String.format(Locale.US, "%.0fkm/h", res.maxSpeedKmh));
         hudTime.setText(String.format(Locale.US, "%.1fs", res.flightTimeS));
 
-        // Control labels
         tvCdVal.setText(String.format(Locale.US, "%.2f", config.dragCoefficient));
         tvPressureVal.setText(String.format(Locale.US, "%.1f bar", config.pressureBar));
         double waterRatio = (config.waterVolumeMl / (config.bottleVolumeL * 1000.0)) * 100.0;
@@ -407,7 +413,6 @@ public class MainActivity extends AppCompatActivity {
         tvWindSpeedVal.setText(String.format(Locale.US, "%.1f m/s", config.windSpeedMs));
         tvWindAngleVal.setText(String.format(Locale.US, "%03.0f° (%s)", config.meteoWindDirectionDeg, getCompassHeadingName(config.meteoWindDirectionDeg)));
 
-        // Decompose wind into head/tailwind and crosswind components relative to launch heading
         double rad = Math.toRadians(config.windAngleDeg);
         double headComponent = config.windSpeedMs * Math.cos(rad);
         double crossComponent = config.windSpeedMs * Math.sin(rad);
@@ -422,14 +427,12 @@ public class MainActivity extends AppCompatActivity {
 
         tvCrosswindBreakdown.setText(String.format(Locale.US, "矢量分解: %s · %s (夹角 %.0f°)", longStr, crossStr, config.windAngleDeg));
 
-        // Technical details
         tvTotalGroundDist.setText(String.format(Locale.US, "地面直线位移: %.1f m", res.totalDistanceM));
         tvDriftAngle.setText(String.format(Locale.US, "侧偏航向角: %.1f°", res.deflectionDeg));
         tvBurnWater.setText(String.format(Locale.US, "喷水推力: %.1f ms", res.waterBurnTimeMs));
         tvBurnAir.setText(String.format(Locale.US, "排气推力: %.1f ms", res.airBurnTimeMs));
         tvImpactEnergy.setText(String.format(Locale.US, "落地速度: %.1f m/s · 动能: %.1f J", res.impactSpeedMs, res.impactEnergyJ));
 
-        // Refresh Trajectory View
         trajectoryView.setSimResult(res, config.launchAngleDeg, config.launchHeadingDeg, config.launchYawDeg, config.windSpeedMs, config.windAngleDeg);
     }
 

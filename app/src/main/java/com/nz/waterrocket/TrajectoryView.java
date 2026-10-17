@@ -25,7 +25,7 @@ public class TrajectoryView extends View {
     public static final int MODE_3D = 1;
 
     private int currentMode = MODE_3D;
-    private boolean showSatelliteMap = true; // Default satellite imagery enabled
+    private boolean showSatelliteMap = true; // User can freely toggle this feature!
 
     private RocketPhysics.SimResult currentResult;
     private double targetDistanceM = -1.0;
@@ -54,8 +54,9 @@ public class TrajectoryView extends View {
     private final RectF btnSideViewBounds = new RectF();
     private final RectF btnResetBounds = new RectF();
 
-    // Satellite imagery texture & mesh
-    private Bitmap satelliteBitmap;
+    // Real-time satellite imagery data
+    private SatelliteMapFetcher.SatelliteMapResult satelliteMapData = null;
+    private Bitmap fallbackSatelliteBitmap = null;
     private static final int MESH_WIDTH = 6;
     private static final int MESH_HEIGHT = 6;
     private final float[] meshVerts = new float[(MESH_WIDTH + 1) * (MESH_HEIGHT + 1) * 2];
@@ -71,7 +72,7 @@ public class TrajectoryView extends View {
     private final Paint targetPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint railPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dropLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint satMeshPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint satMeshPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
     // Paths
     private final Path waterPath = new Path();
@@ -110,17 +111,17 @@ public class TrajectoryView extends View {
         textPaint.setColor(Color.parseColor("#94A3B8"));
         textPaint.setTextSize(10f * density);
 
-        waterPathPaint.setColor(Color.parseColor("#38BDF8")); // Cyan
+        waterPathPaint.setColor(Color.parseColor("#38BDF8"));
         waterPathPaint.setStrokeWidth(3.2f * density);
         waterPathPaint.setStyle(Paint.Style.STROKE);
         waterPathPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        airPathPaint.setColor(Color.parseColor("#34D399")); // Emerald Green
+        airPathPaint.setColor(Color.parseColor("#34D399"));
         airPathPaint.setStrokeWidth(2.8f * density);
         airPathPaint.setStyle(Paint.Style.STROKE);
         airPathPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        coastPathPaint.setColor(Color.parseColor("#F8FAFC")); // White
+        coastPathPaint.setColor(Color.parseColor("#F8FAFC"));
         coastPathPaint.setStrokeWidth(2.4f * density);
         coastPathPaint.setStyle(Paint.Style.STROKE);
         coastPathPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -130,7 +131,7 @@ public class TrajectoryView extends View {
         shadowPathPaint.setStyle(Paint.Style.STROKE);
         shadowPathPaint.setPathEffect(new DashPathEffect(new float[]{4f * density, 3f * density}, 0));
 
-        targetPaint.setColor(Color.parseColor("#FBBF24")); // Amber Gold
+        targetPaint.setColor(Color.parseColor("#FBBF24"));
         targetPaint.setStrokeWidth(1.5f * density);
         targetPaint.setStyle(Paint.Style.STROKE);
         targetPaint.setPathEffect(new DashPathEffect(new float[]{5f * density, 4f * density}, 0));
@@ -144,10 +145,7 @@ public class TrajectoryView extends View {
         railPaint.setStrokeWidth(2.5f * density);
         railPaint.setStyle(Paint.Style.STROKE);
 
-        satMeshPaint.setFilterBitmap(true);
-        satMeshPaint.setDither(true);
-
-        satelliteBitmap = SatelliteTileService.getLaunchFieldSatelliteBitmap(512, 512);
+        fallbackSatelliteBitmap = SatelliteTileService.getLaunchFieldSatelliteBitmap(512, 512);
 
         scaleDetector = new ScaleGestureDetector(context, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override
@@ -174,11 +172,9 @@ public class TrajectoryView extends View {
         });
     }
 
-    public void setSatelliteBitmap(Bitmap bmp) {
-        if (bmp != null) {
-            this.satelliteBitmap = bmp;
-            invalidate();
-        }
+    public void setRealSatelliteMap(SatelliteMapFetcher.SatelliteMapResult data) {
+        this.satelliteMapData = data;
+        invalidate();
     }
 
     public void reset3DCamera() {
@@ -200,6 +196,10 @@ public class TrajectoryView extends View {
     public void toggleSatelliteMap() {
         showSatelliteMap = !showSatelliteMap;
         invalidate();
+    }
+
+    public boolean isSatelliteMapEnabled() {
+        return showSatelliteMap;
     }
 
     public void setSimResult(RocketPhysics.SimResult result, double launchAngle, double launchHeading, double launchYaw, double windSpeed, double windAngle) {
@@ -279,6 +279,8 @@ public class TrajectoryView extends View {
                         float dy = y - lastTouchY;
 
                         camAzimuthDeg = (camAzimuthDeg - dx * 0.42f + 360f) % 360f;
+
+                        // FLIPPED VERTICAL SCROLL: Natural intuition
                         camElevationDeg = Math.max(5.0f, Math.min(88.0f, camElevationDeg + dy * 0.35f));
 
                         lastTouchX = x;
@@ -378,9 +380,12 @@ public class TrajectoryView extends View {
         double gridLimitZ = Math.ceil(boxSize * 0.5 / gridStep) * gridStep;
 
         // =====================================================================
-        // 1. SATELLITE MAP 3D MESH PROJECTION (drawBitmapMesh hardware accelerated)
+        // 1. REAL SATELLITE MAP 3D MESH PROJECTION (ESRI World Imagery Tile)
         // =====================================================================
-        if (showSatelliteMap && satelliteBitmap != null) {
+        Bitmap activeSatBmp = (satelliteMapData != null && satelliteMapData.mapBitmap != null)
+                ? satelliteMapData.mapBitmap : fallbackSatelliteBitmap;
+
+        if (showSatelliteMap && activeSatBmp != null) {
             int index = 0;
             for (int r = 0; r <= MESH_HEIGHT; r++) {
                 double fracZ = (double) r / MESH_HEIGHT;
@@ -393,10 +398,10 @@ public class TrajectoryView extends View {
                     meshVerts[index++] = pt.py;
                 }
             }
-            canvas.drawBitmapMesh(satelliteBitmap, MESH_WIDTH, MESH_HEIGHT, meshVerts, 0, null, 0, satMeshPaint);
+            canvas.drawBitmapMesh(activeSatBmp, MESH_WIDTH, MESH_HEIGHT, meshVerts, 0, null, 0, satMeshPaint);
         }
 
-        // 2. Ground Grid Lines
+        // 2. Ground Grid Lines (Subtle reference overlay)
         for (double z = -gridLimitZ; z <= gridLimitZ; z += gridStep) {
             Point2D pStart = project3D(0, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             Point2D pEnd = project3D(gridLimitX, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
@@ -558,7 +563,7 @@ public class TrajectoryView extends View {
         Paint pPad = new Paint(Paint.ANTI_ALIAS_FLAG);
         pPad.setColor(Color.parseColor("#0284C7"));
         pPad.setStyle(Paint.Style.FILL);
-        canvas.drawCircle(origin.px, origin.py, 4f * density, pPad);
+        canvas.drawCircle(origin.px, origin.py, 4.5f * density, pPad);
 
         // Vertical 3D Launch Pole
         Point2D poleTop = project3D(0, 10.0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
@@ -588,7 +593,7 @@ public class TrajectoryView extends View {
                                      double pivotX, double pivotY, double pivotZ,
                                      float cx, float cy, float scaleWorld,
                                      double sinAz, double cosAz, double sinEl, double cosEl) {
-        // Impact ground blast concentric rings
+        // Impact ground concentric rings
         Paint pBlast = new Paint(Paint.ANTI_ALIAS_FLAG);
         pBlast.setColor(Color.parseColor("#F43F5E"));
         pBlast.setStyle(Paint.Style.STROKE);
@@ -601,7 +606,7 @@ public class TrajectoryView extends View {
         pCenter.setStyle(Paint.Style.FILL);
         canvas.drawCircle(impactPt.px, impactPt.py, 4.5f * density, pCenter);
 
-        // Ground range connection line from launch pad to impact point
+        // Ground range connection line
         Paint pDirectLine = new Paint(Paint.ANTI_ALIAS_FLAG);
         pDirectLine.setColor(Color.parseColor("#F43F5E"));
         pDirectLine.setStrokeWidth(1.4f * density);
@@ -787,12 +792,12 @@ public class TrajectoryView extends View {
                 currentMode == MODE_3D ? Color.parseColor("#38BDF8") : Color.parseColor("#94A3B8"),
                 true);
 
-        // 2. Satellite Imagery Switcher
-        float satW = 56f * density;
+        // 2. Real Satellite Imagery Toggle Switcher (用户可随时开启或关闭!)
+        float satW = 60f * density;
         float satX = btnModeBounds.right + 5f * density;
         btnSatBounds.set(satX, y0, satX + satW, y0 + btnHeight);
         drawChip(canvas, btnSatBounds, density,
-                showSatelliteMap ? "卫星开" : "卫星关",
+                showSatelliteMap ? "卫星: 开" : "卫星: 关",
                 showSatelliteMap ? Color.parseColor("#34D399") : Color.parseColor("#64748B"),
                 showSatelliteMap);
 
