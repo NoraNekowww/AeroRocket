@@ -893,32 +893,39 @@ public class TrajectoryView extends View {
 
         plotArea2D.set(paddingLeft, paddingTop, w - paddingRight, h - paddingBottom);
 
-        double maxX = 50.0;
-        double maxY = 20.0;
+        double maxRange = 50.0;
+        double maxAlt = 20.0;
 
         if (currentResult != null && !currentResult.trajectory.isEmpty()) {
-            maxX = Math.max(maxX, currentResult.rangeM * 1.15);
-            maxY = Math.max(maxY, currentResult.apogeeM * 1.25);
+            maxRange = Math.max(maxRange, currentResult.rangeM * 1.10);
+            maxAlt = Math.max(maxAlt, currentResult.apogeeM * 1.15);
         }
         if (targetDistanceM > 0) {
-            maxX = Math.max(maxX, targetDistanceM * 1.15);
+            maxRange = Math.max(maxRange, targetDistanceM * 1.10);
         }
 
-        double stepX = calculateNiceStep(maxX, 5);
-        double stepY = calculateNiceStep(maxY, 4);
-        maxX = Math.ceil(maxX / stepX) * stepX;
-        maxY = Math.ceil(maxY / stepY) * stepY;
+        // 1:1 ISOTROPIC ASPECT RATIO (横竖物理缩放严格 1:1 一致，1米横向 = 1米纵向)
+        float availW = plotArea2D.width();
+        float availH = plotArea2D.height();
+        double scale = Math.min(availW / maxRange, availH / maxAlt); // pixels per real meter
 
-        for (double gx = 0; gx <= maxX; gx += stepX) {
-            float px = (float) (plotArea2D.left + (gx / maxX) * plotArea2D.width());
+        double maxX = availW / scale;
+        double maxY = availH / scale;
+
+        double gridStep = calculateNiceStep(Math.max(maxRange, maxAlt), 5);
+
+        for (double gx = 0; gx <= maxX; gx += gridStep) {
+            float px = (float) (plotArea2D.left + gx * scale);
+            if (px > plotArea2D.right) break;
             canvas.drawLine(px, plotArea2D.top, px, plotArea2D.bottom, gridPaint);
             String label = String.format(Locale.US, "%.0fm", gx);
             float tw = textPaint.measureText(label);
             canvas.drawText(label, px - tw / 2f, plotArea2D.bottom + 16f * density, textPaint);
         }
 
-        for (double gy = 0; gy <= maxY; gy += stepY) {
-            float py = (float) (plotArea2D.bottom - (gy / maxY) * plotArea2D.height());
+        for (double gy = 0; gy <= maxY; gy += gridStep) {
+            float py = (float) (plotArea2D.bottom - gy * scale);
+            if (py < plotArea2D.top) break;
             canvas.drawLine(plotArea2D.left, py, plotArea2D.right, py, gridPaint);
             String label = String.format(Locale.US, "%.0fm", gy);
             canvas.drawText(label, plotArea2D.left - textPaint.measureText(label) - 6f * density, py + 4f * density, textPaint);
@@ -928,14 +935,16 @@ public class TrajectoryView extends View {
         canvas.drawLine(plotArea2D.left, plotArea2D.top, plotArea2D.left, plotArea2D.bottom, axisPaint);
 
         if (targetDistanceM > 0 && targetDistanceM <= maxX) {
-            float tx = (float) (plotArea2D.left + (targetDistanceM / maxX) * plotArea2D.width());
-            canvas.drawLine(tx, plotArea2D.top, tx, plotArea2D.bottom, targetPaint);
-            Paint pFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-            pFill.setColor(Color.parseColor("#FBBF24"));
-            pFill.setStyle(Paint.Style.FILL);
-            pFill.setTextSize(9f * density);
-            canvas.drawCircle(tx, plotArea2D.top + 6f * density, 4f * density, pFill);
-            canvas.drawText(String.format(Locale.US, "目标: %.0fm", targetDistanceM), tx + 6f * density, plotArea2D.top + 9f * density, pFill);
+            float tx = (float) (plotArea2D.left + targetDistanceM * scale);
+            if (tx <= plotArea2D.right) {
+                canvas.drawLine(tx, plotArea2D.top, tx, plotArea2D.bottom, targetPaint);
+                Paint pFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+                pFill.setColor(Color.parseColor("#FBBF24"));
+                pFill.setStyle(Paint.Style.FILL);
+                pFill.setTextSize(9f * density);
+                canvas.drawCircle(tx, plotArea2D.top + 6f * density, 4f * density, pFill);
+                canvas.drawText(String.format(Locale.US, "目标: %.0fm", targetDistanceM), tx + 6f * density, plotArea2D.top + 9f * density, pFill);
+            }
         }
 
         if (currentResult == null || currentResult.trajectory.isEmpty()) return;
@@ -954,8 +963,8 @@ public class TrajectoryView extends View {
         RocketPhysics.TrajectoryPoint prevPt = null;
         for (int i = 0; i <= activeIndex; i++) {
             RocketPhysics.TrajectoryPoint pt = traj.get(i);
-            float px = (float) (plotArea2D.left + (pt.x / maxX) * plotArea2D.width());
-            float py = (float) (plotArea2D.bottom - (pt.y / maxY) * plotArea2D.height());
+            float px = (float) (plotArea2D.left + pt.x * scale);
+            float py = (float) (plotArea2D.bottom - pt.y * scale);
 
             if (pt.y > maxAltFound) {
                 maxAltFound = pt.y;
@@ -1006,11 +1015,11 @@ public class TrajectoryView extends View {
 
         // 2D Impact Point marker with continuous dispersion range bar
         RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
-        float landPx = (float) (plotArea2D.left + (lastPt.x / maxX) * plotArea2D.width());
+        float landPx = (float) (plotArea2D.left + lastPt.x * scale);
         float landPy = plotArea2D.bottom;
 
         if (currentResult.dispersion != null) {
-            float cepPx = (float) (currentResult.dispersion.cepRadiusM / maxX * plotArea2D.width());
+            float cepPx = (float) (currentResult.dispersion.cepRadiusM * scale);
             Paint pBar = new Paint(Paint.ANTI_ALIAS_FLAG);
             pBar.setColor(Color.argb(70, 244, 63, 94));
             pBar.setStrokeWidth(5f * density);

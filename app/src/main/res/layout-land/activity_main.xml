@@ -45,7 +45,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:fontFamily="monospace"
-                    android:text="v1.3.0 (Pad横屏模式)"
+                    android:text="v1.3.1 (Pad横屏模式)"
                     android:textColor="@color/accent_amber"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -639,10 +639,12 @@
                             android:textSize="12.5sp"
                             android:textStyle="bold" />
 
-                        <Button
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btn_refresh_location"
                             android:layout_width="wrap_content"
                             android:layout_height="24dp"
+                            android:minHeight="0dp"
+                            android:minWidth="0dp"
                             android:background="@drawable/bg_chip"
                             android:paddingStart="8dp"
                             android:paddingEnd="8dp"
@@ -677,10 +679,12 @@
                                 android:textSize="10.5sp"
                                 android:textStyle="bold" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_gps_edit"
                                 android:layout_width="wrap_content"
                                 android:layout_height="22dp"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_chip"
                                 android:paddingStart="6dp"
                                 android:paddingEnd="6dp"
@@ -704,45 +708,53 @@
                                 android:textColor="@color/text_secondary"
                                 android:textSize="10sp" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_gps_north"
                                 android:layout_width="0dp"
                                 android:layout_height="22dp"
                                 android:layout_margin="1dp"
                                 android:layout_weight="1"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_chip"
                                 android:text="北 ↑"
                                 android:textColor="@color/text_primary"
                                 android:textSize="9.5sp" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_gps_south"
                                 android:layout_width="0dp"
                                 android:layout_height="22dp"
                                 android:layout_margin="1dp"
                                 android:layout_weight="1"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_chip"
                                 android:text="南 ↓"
                                 android:textColor="@color/text_primary"
                                 android:textSize="9.5sp" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_gps_west"
                                 android:layout_width="0dp"
                                 android:layout_height="22dp"
                                 android:layout_margin="1dp"
                                 android:layout_weight="1"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_chip"
                                 android:text="西 ←"
                                 android:textColor="@color/text_primary"
                                 android:textSize="9.5sp" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_gps_east"
                                 android:layout_width="0dp"
                                 android:layout_height="22dp"
                                 android:layout_margin="1dp"
                                 android:layout_weight="1"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_chip"
                                 android:text="东 →"
                                 android:textColor="@color/text_primary"
@@ -789,11 +801,13 @@
                                 android:textColorHint="@color/text_muted"
                                 android:textSize="10.5sp" />
 
-                            <Button
+                            <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btn_apply_coords"
                                 android:layout_width="wrap_content"
                                 android:layout_height="28dp"
                                 android:layout_marginStart="4dp"
+                                android:minHeight="0dp"
+                                android:minWidth="0dp"
                                 android:background="@drawable/bg_btn_accent"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp"
@@ -995,11 +1009,13 @@
                             android:textSize="11sp" />
                     </RadioGroup>
 
-                    <Button
+                    <androidx.appcompat.widget.AppCompatButton
                         android:id="@+id/btn_solve_target"
                         android:layout_width="match_parent"
                         android:layout_height="38dp"
                         android:layout_marginTop="8dp"
+                        android:minHeight="0dp"
+                        android:minWidth="0dp"
                         android:background="@drawable/bg_btn_accent"
                         android:text="开始反推最优发射配置"
                         android:textColor="#FFFFFF"
@@ -1027,11 +1043,13 @@
                             android:textColor="@color/text_primary"
                             android:textSize="11sp" />
 
-                        <Button
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btn_apply_solve"
                             android:layout_width="match_parent"
                             android:layout_height="32dp"
                             android:layout_marginTop="6dp"
+                            android:minHeight="0dp"
+                            android:minWidth="0dp"
                             android:background="@drawable/bg_btn_secondary"
                             android:text="一键应用此参数并生成3D弹道"
                             android:textColor="@color/accent_blue"

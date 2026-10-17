@@ -9,6 +9,7 @@ import java.util.List;
  * 物理模型特征：
  * 1. 阶段一（排水推力期）：绝热膨胀过程 (P(t)*V_air(t)^gamma = C) + 瓶口收缩修正 (1 - (A_nozzle/A_bottle)^2)
  *    + 强加速度水柱附加伪重力静水压修正 Delta_P_hydro = rho_w * (g*sin(theta) + a_axis) * h_w(t)
+ *    + 严格质量守恒闭式解耦：m(t) = m_dry + rho_w * max(0, V_bottle - V_air) + m_air0，杜绝离散相变过冲质量亏损
  * 2. 阶段二（残余高压气喷射期）：等熵绝热放气模型 + 临界压比判据 (P_crit = 0.52828 P(t))
  *    雍塞流 (Choked Flow, 音速出口) 与亚音速流 (Subsonic Flow, 圣维南 Saint-Venant 气动力学方程) 动态切换
  * 3. 阶段三（无动力惯性滑翔期）：纯外弹道空气动力学阻力矢量积分 (F_drag = 0.5 * rho * Cd * A * v_rel^2)
@@ -16,7 +17,7 @@ import java.util.List;
  * 5. 零内存分配 (Zero-Allocation)：热循环内无对象创建，毫秒级响应，杜绝 Android UI 拖动 GC 抖动
  * 6. 落地检测：亚步长线性插值求解精确落地时刻 t_land 与最大射程 x_max
  *
- * @version 1.3.0
+ * @version 1.3.1
  */
 public class RocketPhysics {
 
@@ -253,16 +254,20 @@ public class RocketPhysics {
         double windVz = -cfg.windSpeedMs * Math.sin(windAngleRad); // 侧风横向分量
 
         // 2. 状态向量初始化 (Zero-Allocation 原始数据类型)
-        // 状态分量: x, y, z, vx, vy, vz, m, V_air
+        // 状态分量: x, y, z, vx, vy, vz, V_air, m_air
         double x = 0.0, y = 0.0, z = 0.0;
         double vx = 0.0, vy = 0.0, vz = 0.0;
-        double m = m0;
         double V_air = V_air0;
+        double m_air = m_air0;
         double t = 0.0;
 
         // 阶段一与阶段二过渡热力学状态记录
         int phase = (V_water0 <= 1e-7) ? 1 : 0; // 若初始水量为0直接进入阶段二
-        double P1 = P0, T1 = T0, rho_air_in1 = (P0 / (R_AIR * T0));
+        double P1 = P0 * Math.pow(V_air0 / V_bottle, GAMMA);
+        double T1 = T0 * Math.pow(P1 / P0, (GAMMA - 1.0) / GAMMA);
+        double rho_air_in1 = P1 / (R_AIR * Math.max(100.0, T1));
+        double m_air_residual_limit = (P_ATM * V_bottle) / (R_AIR * T0);
+
         double t_water_end = (phase == 1) ? 0.0 : -1.0;
         double t_air_end = -1.0;
 
@@ -283,11 +288,11 @@ public class RocketPhysics {
         double dt = (phase == 2) ? 0.01 : 0.0002; // 自适应步长：动力期 0.2ms，滑翔期 10ms
 
         // 预分配 RK4 计算导数暂存结构 (避免热循环 GC)
-        double[] k1 = new double[6]; // [dx, dy, dz, dvx, dvy, dvz]
-        double[] k2 = new double[6];
-        double[] k3 = new double[6];
-        double[] k4 = new double[6];
-        double[] aux = new double[4]; // [dm_dt, dV_air_dt, F_thrust, P_inst]
+        double[] k1 = new double[8]; // [dx, dy, dz, dvx, dvy, dvz, dV_air, dm_air]
+        double[] k2 = new double[8];
+        double[] k3 = new double[8];
+        double[] k4 = new double[8];
+        double[] aux = new double[4]; // [m_cur, F_thrust, P_inst, a_step]
 
         // 3. 自适应步长四阶龙格-库塔 (RK4) 主数值积分循环 (超时上限 60 秒)
         while (t < 60.0) {
@@ -296,21 +301,21 @@ public class RocketPhysics {
             if (y > maxAlt) maxAlt = y;
 
             // =================================================================
-            // 阶段动态切换与边界条件判据
+            // 阶段动态切换与严格质量守恒边界条件判据
             // =================================================================
             if (phase == 0 && V_air >= V_bottle) {
-                // 阶段一水排空瞬间 -> 记录此时瓶内气体初始膨胀点 (P1, T1, rho_air_in1)
+                // 阶段一水排空瞬间 -> 严格锁定剩余水为0，气质量为m_air0，平滑开启阶段二放气
                 phase = 1;
                 t_water_end = t;
                 V_air = V_bottle;
+                m_air = m_air0;
                 P1 = P0 * Math.pow(V_air0 / V_bottle, GAMMA);
                 T1 = T0 * Math.pow(P1 / P0, (GAMMA - 1.0) / GAMMA);
                 rho_air_in1 = P1 / (R_AIR * Math.max(100.0, T1));
             } else if (phase == 1) {
-                double m_air_cur = Math.max(0.0, m - m_dry);
-                double rho_in = m_air_cur / V_bottle;
+                double rho_in = m_air / V_bottle;
                 double P_cur = (rho_air_in1 > 0) ? P1 * Math.pow(rho_in / rho_air_in1, GAMMA) : P_ATM;
-                if (P_cur <= P_ATM || m_air_cur <= 1e-6) {
+                if (P_cur <= P_ATM || m_air <= m_air_residual_limit) {
                     // 阶段二残气排空瞬间 -> 进入阶段三无动力滑翔
                     phase = 2;
                     t_air_end = t;
@@ -357,12 +362,12 @@ public class RocketPhysics {
             // 四阶龙格-库塔 (RK4) 核心子步积分
             // =================================================================
             // K1
-            computeDerivatives(phase, x, y, z, vx, vy, vz, m, V_air,
+            computeDerivatives(phase, x, y, z, vx, vy, vz, V_air, m_air,
                     ub_x, ub_y, ub_z, windVx, windVz,
-                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry,
+                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry, m_air0,
                     A_nozzle, A_bottle, contractionFactor, Cd_nozzle, Cd_body,
                     k1, aux);
-            double dm1 = aux[0], dV1 = aux[1], F_thrust_step = aux[2], P_step = aux[3];
+            double m_step = aux[0], F_thrust_step = aux[1], P_step = aux[2];
             double a_step = Math.sqrt(k1[3] * k1[3] + k1[4] * k1[4] + k1[5] * k1[5]);
             if (F_thrust_step > maxThrust) maxThrust = F_thrust_step;
             if (a_step > maxAccel) maxAccel = a_step;
@@ -371,34 +376,31 @@ public class RocketPhysics {
             computeDerivatives(phase,
                     x + 0.5 * dt * k1[0], y + 0.5 * dt * k1[1], z + 0.5 * dt * k1[2],
                     vx + 0.5 * dt * k1[3], vy + 0.5 * dt * k1[4], vz + 0.5 * dt * k1[5],
-                    m + 0.5 * dt * dm1, V_air + 0.5 * dt * dV1,
+                    V_air + 0.5 * dt * k1[6], m_air + 0.5 * dt * k1[7],
                     ub_x, ub_y, ub_z, windVx, windVz,
-                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry,
+                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry, m_air0,
                     A_nozzle, A_bottle, contractionFactor, Cd_nozzle, Cd_body,
                     k2, aux);
-            double dm2 = aux[0], dV2 = aux[1];
 
             // K3
             computeDerivatives(phase,
                     x + 0.5 * dt * k2[0], y + 0.5 * dt * k2[1], z + 0.5 * dt * k2[2],
                     vx + 0.5 * dt * k2[3], vy + 0.5 * dt * k2[4], vz + 0.5 * dt * k2[5],
-                    m + 0.5 * dt * dm2, V_air + 0.5 * dt * dV2,
+                    V_air + 0.5 * dt * k2[6], m_air + 0.5 * dt * k2[7],
                     ub_x, ub_y, ub_z, windVx, windVz,
-                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry,
+                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry, m_air0,
                     A_nozzle, A_bottle, contractionFactor, Cd_nozzle, Cd_body,
                     k3, aux);
-            double dm3 = aux[0], dV3 = aux[1];
 
             // K4
             computeDerivatives(phase,
                     x + dt * k3[0], y + dt * k3[1], z + dt * k3[2],
                     vx + dt * k3[3], vy + dt * k3[4], vz + dt * k3[5],
-                    m + dt * dm3, V_air + dt * dV3,
+                    V_air + dt * k3[6], m_air + dt * k3[7],
                     ub_x, ub_y, ub_z, windVx, windVz,
-                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry,
+                    V_bottle, V_air0, P0, P1, T1, rho_air_in1, m_dry, m_air0,
                     A_nozzle, A_bottle, contractionFactor, Cd_nozzle, Cd_body,
                     k4, aux);
-            double dm4 = aux[0], dV4 = aux[1];
 
             // 状态推进更新 (Simpson 权重: 1/6 * (k1 + 2k2 + 2k3 + k4))
             x  += (dt / 6.0) * (k1[0] + 2.0 * k2[0] + 2.0 * k3[0] + k4[0]);
@@ -409,13 +411,10 @@ public class RocketPhysics {
             vz += (dt / 6.0) * (k1[5] + 2.0 * k2[5] + 2.0 * k3[5] + k4[5]);
 
             if (phase == 0) {
-                V_air += (dt / 6.0) * (dV1 + 2.0 * dV2 + 2.0 * dV3 + dV4);
-                m     += (dt / 6.0) * (dm1 + 2.0 * dm2 + 2.0 * dm3 + dm4);
+                V_air += (dt / 6.0) * (k1[6] + 2.0 * k2[6] + 2.0 * k3[6] + k4[6]);
             } else if (phase == 1) {
-                m     += (dt / 6.0) * (dm1 + 2.0 * dm2 + 2.0 * dm3 + dm4);
-                if (m < m_dry) m = m_dry;
-            } else {
-                m = m_dry;
+                m_air += (dt / 6.0) * (k1[7] + 2.0 * k2[7] + 2.0 * k3[7] + k4[7]);
+                if (m_air < 0.0) m_air = 0.0;
             }
 
             t += dt;
@@ -427,7 +426,7 @@ public class RocketPhysics {
                 res.trajectory.add(new TrajectoryPoint(
                         (float) x, (float) Math.max(0.0, y), (float) z,
                         (float) vx, (float) vy, (float) vz, (float) t, phase,
-                        (float) F_thrust_step, (float) P_step, (float) a_step, (float) m));
+                        (float) F_thrust_step, (float) P_step, (float) a_step, (float) m_step));
                 nextSampleTime = t + (phase == 2 ? 0.020 : 0.005);
             }
 
@@ -477,34 +476,39 @@ public class RocketPhysics {
     /**
      * 计算特定状态下的全系统导数矢量 (ODEs RHS Function, Zero-Allocation)
      *
-     * @param outDeriv 输出 [dx, dy, dz, dvx, dvy, dvz]
-     * @param outAux   输出辅助变量 [dm_dt, dV_air_dt, F_thrust, P_inst]
+     * @param outDeriv 输出 [dx, dy, dz, dvx, dvy, dvz, dV_air, dm_air]
+     * @param outAux   输出辅助变量 [m_cur, F_thrust, P_inst, a_step]
      */
     private static void computeDerivatives(
-            int phase, double x, double y, double z, double vx, double vy, double vz, double m_cur, double V_air_cur,
+            int phase, double x, double y, double z, double vx, double vy, double vz,
+            double V_air_cur, double m_air_cur,
             double ub_x, double ub_y, double ub_z, double windVx, double windVz,
-            double V_bottle, double V_air0, double P0, double P1, double T1, double rho_air_in1, double m_dry,
+            double V_bottle, double V_air0, double P0, double P1, double T1, double rho_air_in1,
+            double m_dry, double m_air0,
             double A_nozzle, double A_bottle, double contractionFactor, double Cd_nozzle, double Cd_body,
             double[] outDeriv, double[] outAux) {
 
-        double m_eff = Math.max(m_dry, m_cur);
+        double m_cur;
         double F_thrust = 0.0;
-        double dm_dt = 0.0;
         double dV_air_dt = 0.0;
+        double dm_air_dt = 0.0;
         double P_inst = P_ATM;
 
         if (phase == 0) {
             // =================================================================
             // 阶段一：排水推力期 (Water Expulsion Phase)
+            // 严格质量守恒闭式解耦：m_cur = m_dry + rho_w * max(0, V_bottle - V_air_eff) + m_air0
             // =================================================================
             double V_air_eff = Math.max(V_air0, Math.min(V_bottle, V_air_cur));
             P_inst = P0 * Math.pow(V_air0 / V_air_eff, GAMMA); // 绝热膨胀气压 (Pa)
 
             double V_water_cur = Math.max(0.0, V_bottle - V_air_eff);
+            m_cur = m_dry + (RHO_WATER * V_water_cur) + m_air0;
+
             double h_water = V_water_cur / A_bottle; // 瓶内瞬时水柱高度 (m)
 
             // 计入高加速度水柱附加静水压修正 Delta P_hydro = rho_w * (g * sin(theta) + a_axis) * h_w
-            double a_approx = Math.max(0.0, (2.0 * Cd_nozzle * A_nozzle * Math.max(0.0, P_inst - P_ATM) / m_eff) - G * ub_y);
+            double a_approx = Math.max(0.0, (2.0 * Cd_nozzle * A_nozzle * Math.max(0.0, P_inst - P_ATM) / m_cur) - G * ub_y);
             double deltaP_hydro = RHO_WATER * (G * ub_y + a_approx) * h_water;
 
             double P_drive = Math.max(0.0, P_inst - P_ATM + deltaP_hydro);
@@ -513,9 +517,9 @@ public class RocketPhysics {
             // v_e(t) = sqrt( 2 * (P(t) - P_atm + Delta P_hydro) / (rho_w * (1 - (A_n / A_b)^2)) )
             double ve = Math.sqrt((2.0 * P_drive) / (RHO_WATER * contractionFactor));
 
-            // 质量与容积变化率
+            // 容积变化率
             dV_air_dt = Cd_nozzle * A_nozzle * ve;
-            dm_dt = -RHO_WATER * dV_air_dt;
+            dm_air_dt = 0.0;
 
             // 瞬时推力
             F_thrust = 2.0 * Cd_nozzle * A_nozzle * P_drive;
@@ -524,8 +528,9 @@ public class RocketPhysics {
             // =================================================================
             // 阶段二：残余高压气体喷射期 (Air Blowdown Phase)
             // =================================================================
-            double m_air_cur = Math.max(1e-6, m_cur - m_dry);
-            double rho_in = m_air_cur / V_bottle;
+            double m_air_eff = Math.max(1e-6, m_air_cur);
+            m_cur = m_dry + m_air_eff;
+            double rho_in = m_air_eff / V_bottle;
 
             P_inst = Math.max(P_ATM, P1 * Math.pow(rho_in / Math.max(1e-6, rho_air_in1), GAMMA));
             double T_inst = Math.max(80.0, T1 * Math.pow(P_inst / Math.max(1.0, P1), (GAMMA - 1.0) / GAMMA));
@@ -551,16 +556,17 @@ public class RocketPhysics {
                 rho_e = Pe / (R_AIR * Math.max(50.0, Te));
             }
 
-            dm_dt = -Cd_nozzle * A_nozzle * rho_e * ve_air;
-            F_thrust = (-dm_dt * ve_air) + A_nozzle * (Pe - P_ATM);
+            dm_air_dt = -Cd_nozzle * A_nozzle * rho_e * ve_air;
+            F_thrust = (-dm_air_dt * ve_air) + A_nozzle * (Pe - P_ATM);
             dV_air_dt = 0.0;
 
         } else {
             // =================================================================
             // 阶段三：无动力滑翔期 (Ballistic Coasting Phase)
             // =================================================================
+            m_cur = m_dry;
             F_thrust = 0.0;
-            dm_dt = 0.0;
+            dm_air_dt = 0.0;
             dV_air_dt = 0.0;
             P_inst = P_ATM;
         }
@@ -580,22 +586,23 @@ public class RocketPhysics {
 
         // 全系统牛顿动力学运动方程: a = (F_thrust * u_body + F_drag - m * g) / m
         double F_net_x = F_thrust * ub_x + F_drag_x;
-        double F_net_y = F_thrust * ub_y + F_drag_y - m_eff * G;
+        double F_net_y = F_thrust * ub_y + F_drag_y - m_cur * G;
         double F_net_z = F_thrust * ub_z + F_drag_z;
 
         // 输出导数矢量
         outDeriv[0] = vx;                // dx/dt
         outDeriv[1] = vy;                // dy/dt
         outDeriv[2] = vz;                // dz/dt
-        outDeriv[3] = F_net_x / m_eff;   // dvx/dt
-        outDeriv[4] = F_net_y / m_eff;   // dvy/dt
-        outDeriv[5] = F_net_z / m_eff;   // dvz/dt
+        outDeriv[3] = F_net_x / m_cur;   // dvx/dt
+        outDeriv[4] = F_net_y / m_cur;   // dvy/dt
+        outDeriv[5] = F_net_z / m_cur;   // dvz/dt
+        outDeriv[6] = dV_air_dt;         // dV_air/dt
+        outDeriv[7] = dm_air_dt;         // dm_air/dt
 
         // 输出辅助状态
-        outAux[0] = dm_dt;
-        outAux[1] = dV_air_dt;
-        outAux[2] = F_thrust;
-        outAux[3] = P_inst;
+        outAux[0] = m_cur;
+        outAux[1] = F_thrust;
+        outAux[2] = P_inst;
     }
 
     /**
