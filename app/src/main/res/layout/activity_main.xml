@@ -44,7 +44,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:fontFamily="monospace"
-                    android:text="v1.2.3"
+                    android:text="v1.3.0"
                     android:textColor="@color/accent_amber"
                     android:textSize="11sp"
                     android:textStyle="bold" />

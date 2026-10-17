@@ -677,7 +677,7 @@ public class MainActivity extends AppCompatActivity {
         tvDriftAngle.setText(String.format(Locale.US, "侧偏航向角: %.1f°", res.deflectionDeg));
         tvBurnWater.setText(String.format(Locale.US, "喷水推力: %.1f ms", res.waterBurnTimeMs));
         tvBurnAir.setText(String.format(Locale.US, "排气推力: %.1f ms", res.airBurnTimeMs));
-        tvImpactEnergy.setText(String.format(Locale.US, "落地速度: %.1f m/s · 动能: %.1f J", res.impactSpeedMs, res.impactEnergyJ));
+        tvImpactEnergy.setText(String.format(Locale.US, "峰值推力: %.1f N · 峰值过载: %.1f G · 落地动能: %.1f J", res.maxThrustN, res.maxAccelerationG, res.impactEnergyJ));
 
         trajectoryView.setSimResult(res, config.launchAngleDeg, config.launchHeadingDeg, config.launchYawDeg, config.windSpeedMs, config.windAngleDeg);
     }

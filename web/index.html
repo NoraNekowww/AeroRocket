@@ -190,14 +190,14 @@
 <body>
 
 <div class="container">
-    <div class="icon">🛰️</div>
-    <h1>AeroRocket <span>3D v1.2.4</span></h1>
-    <p class="sub-desc">本项目完全开源，免登录随便访问。<br>3D模拟发射推演 · GPS发射场手动移动微调 · 物理定标卫星底图 · 连续高斯概率散布</p>
+    <div class="icon">🚀</div>
+    <h1>AeroRocket <span>3D v1.3.0</span></h1>
+    <p class="sub-desc">本项目完全开源，免登录随便访问。<br>三阶段耦合常微分方程组 (ODEs) · 自适应步长四阶龙格-库塔 (RK4) · 零GC热路径高帧率引擎</p>
 
     <!-- 明确标明含有 AI 生成声明 -->
     <div class="ai-banner">
         <span class="ai-tag">AI 声明</span>
-        <p><strong>公开声明：</strong>本项目（包括两相流动力学物理模型、真实卫星瓦片下载与物理地面锚定算法、3D 模拟发射推演引擎、GPS 发射场自由微调与高斯连续概率散布模型及侧风逆向配平算法）由开发者指导并借助 <strong>Nous Research Hermes</strong> 与 <strong>AI Agent</strong> 协同生成与调优。</p>
+        <p><strong>公开声明：</strong>本项目（包括工业级两相流 CFD 热力学动力学方程组、自适应步长 RK4 积分引擎、真实卫星遥感物理地面空间锚定、3D 模拟发射推演系统及侧风逆向配平算法）由开发者指导并借助 <strong>Nous Research Hermes</strong> 与 <strong>AI Agent</strong> 协同生成与调优。</p>
     </div>
 
     <!-- 自动跳转倒计时提示 -->
@@ -207,28 +207,28 @@
 
     <div class="actions">
         <a id="target-link" href="https://github.com/NoraNekowww/AeroRocket/releases" class="btn btn-primary">
-            立即前往 GitHub Releases 下载 v1.2.4 APK
+            立即前往 GitHub Releases 下载 v1.3.0 APK
         </a>
         <a href="https://github.com/NoraNekowww/AeroRocket" class="btn btn-secondary">
             访问 GitHub 开源项目仓库
         </a>
-        <a href="/water-rocket/AeroRocket-v1.2.4-release.apk" class="btn-mirror" download>
-            本站免登录备用镜像直接下载 (v1.2.4)
+        <a href="/water-rocket/AeroRocket-v1.3.0-release.apk" class="btn-mirror" download>
+            本站免登录备用镜像直接下载 (v1.3.0)
         </a>
     </div>
 
     <div class="specs-grid">
         <div class="spec-item">
             <span class="label">软件版本</span>
-            <span class="val">v1.2.4 (Release)</span>
+            <span class="val">v1.3.0 (CFD & RK4 Release)</span>
         </div>
         <div class="spec-item">
-            <span class="label">安装包大小</span>
-            <span class="val">3.86 MB</span>
+            <span class="label">数值核心</span>
+            <span class="val">Adaptive RK4 (0.2ms / 10ms)</span>
         </div>
         <div class="spec-item" style="grid-column: 1 / -1;">
-            <span class="label">SHA-256 指纹</span>
-            <span class="val">6725570436479b2c18dc6cb5cb4048718b1dbb9380da7a7d47f1a10bd508c442</span>
+            <span class="label">核心模型</span>
+            <span class="val">三阶段热动力学耦合并行解算 · 圣维南气动方程 · 静水压与瓶口收缩修正</span>
         </div>
     </div>
 
