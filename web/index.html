@@ -24,23 +24,24 @@
             padding: 30px 20px;
         }
         .container {
+            max-width: 640px;
             width: 100%;
-            max-width: 660px;
-            background: #131c31;
-            border: 1px solid #233554;
+            background: #111a2e;
+            border: 1px solid #1e2c4a;
             border-radius: 16px;
-            padding: 36px 28px;
-            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5);
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
         .icon {
-            font-size: 3rem;
+            font-size: 48px;
             margin-bottom: 12px;
         }
         h1 {
-            font-size: 1.85rem;
-            color: #f1f5f9;
+            font-size: 1.65rem;
+            font-weight: 700;
             margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
         h1 span {
             color: #38bdf8;
@@ -49,12 +50,12 @@
             color: #94a3b8;
             font-size: 0.95rem;
             line-height: 1.6;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
-        /* 明确标明 AI 生成声明 */
+        /* AI 生成醒目横幅声明 */
         .ai-banner {
-            background: rgba(168, 85, 247, 0.12);
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.15), rgba(79, 70, 229, 0.15));
             border: 1px solid rgba(168, 85, 247, 0.35);
             border-radius: 10px;
             padding: 12px 16px;
@@ -62,15 +63,16 @@
             text-align: left;
             display: flex;
             align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
         }
-        .ai-banner .ai-tag {
-            background: #a855f7;
+        .ai-tag {
+            background: #9333ea;
             color: #ffffff;
             font-size: 0.72rem;
-            font-weight: bold;
-            padding: 2px 7px;
+            font-weight: 700;
+            padding: 3px 6px;
             border-radius: 4px;
+            text-transform: uppercase;
             white-space: nowrap;
             margin-top: 2px;
         }
@@ -83,9 +85,9 @@
 
         .countdown-box {
             background: #0d1527;
-            border: 1px solid #1a2742;
+            border: 1px dashed #38bdf8;
             border-radius: 10px;
-            padding: 14px;
+            padding: 12px;
             margin-bottom: 24px;
             font-size: 0.9rem;
             color: #cbd5e1;
@@ -189,13 +191,13 @@
 
 <div class="container">
     <div class="icon">🛰️</div>
-    <h1>AeroRocket <span>3D v1.2.2</span></h1>
-    <p class="sub-desc">本项目完全开源，免登录随便访问。<br>物理级箭体姿态刚度动力学 · 开放卫星图实时下载 · 立体高亮发射点与落点</p>
+    <h1>AeroRocket <span>3D v1.2.3</span></h1>
+    <p class="sub-desc">本项目完全开源，免登录随便访问。<br>GeoGebra 式上下拖拽菜单 · Pad横屏双栏视图 · 电子云落点概率散布</p>
 
     <!-- 明确标明含有 AI 生成声明 -->
     <div class="ai-banner">
         <span class="ai-tag">AI 声明</span>
-        <p><strong>公开声明：</strong>本项目（包括两相流动力学物理模型、真实卫星瓦片下载与 3D 透视贴图算法、Android 交互界面及侧风反推配平求解器）由开发者指导并借助 <strong>Nous Research Hermes</strong> 与 <strong>AI Agent</strong> 协同生成与调优。</p>
+        <p><strong>公开声明：</strong>本项目（包括两相流动力学物理模型、真实卫星瓦片下载与 3D 透视贴图算法、GeoGebra 上下拉伸菜单与 Pad 宽屏布局、落点电子云散布概率模型及侧风逆向配平算法）由开发者指导并借助 <strong>Nous Research Hermes</strong> 与 <strong>AI Agent</strong> 协同生成与调优。</p>
     </div>
 
     <!-- 自动跳转倒计时提示 -->
@@ -205,20 +207,20 @@
 
     <div class="actions">
         <a id="target-link" href="https://github.com/NoraNekowww/AeroRocket/releases" class="btn btn-primary">
-            立即前往 GitHub Releases 下载 v1.2.2 APK
+            立即前往 GitHub Releases 下载 v1.2.3 APK
         </a>
         <a href="https://github.com/NoraNekowww/AeroRocket" class="btn btn-secondary">
             访问 GitHub 开源项目仓库
         </a>
-        <a href="/water-rocket/AeroRocket-v1.2.2-release.apk" class="btn-mirror" download>
-            本站免登录备用镜像直接下载 (v1.2.2)
+        <a href="/water-rocket/AeroRocket-v1.2.3-release.apk" class="btn-mirror" download>
+            本站免登录备用镜像直接下载 (v1.2.3)
         </a>
     </div>
 
     <div class="specs-grid">
         <div class="spec-item">
             <span class="label">软件版本</span>
-            <span class="val">v1.2.2 (Release)</span>
+            <span class="val">v1.2.3 (Release)</span>
         </div>
         <div class="spec-item">
             <span class="label">安装包大小</span>
@@ -226,7 +228,7 @@
         </div>
         <div class="spec-item" style="grid-column: 1 / -1;">
             <span class="label">SHA-256 指纹</span>
-            <span class="val">ffca401240218f522e0579f23ae9f7bcbb38351277ab17090482fbe5bd0e8def</span>
+            <span class="val">662e17029722504228a3d786a566d89b192adfe4a9fdd4e4e4f4ebe0bc075680</span>
         </div>
     </div>
 

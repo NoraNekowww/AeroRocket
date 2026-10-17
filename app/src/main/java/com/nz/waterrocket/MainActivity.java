@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,6 +33,14 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvEcmwfStatus;
     private View viewEcmwfDot;
     private View chipEcmwf;
+
+    // GeoGebra Style Splitter
+    private View layoutMapSection;
+    private View splitHandle;
+    private View splitDragCenter;
+    private TextView btnFocusMap;
+    private TextView btnFocusBalance;
+    private TextView btnFocusParams;
 
     private TextView hudRange;
     private TextView hudDrift;
@@ -72,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvSolveSummary;
     private Button btnApplySolve;
 
+    private TextView tvDispersionCloud;
     private TextView tvTotalGroundDist;
     private TextView tvDriftAngle;
     private TextView tvBurnWater;
@@ -102,6 +112,13 @@ public class MainActivity extends AppCompatActivity {
         tvEcmwfStatus = findViewById(R.id.tv_ecmwf_status);
         viewEcmwfDot = findViewById(R.id.view_ecmwf_dot);
         chipEcmwf = findViewById(R.id.chip_ecmwf);
+
+        layoutMapSection = findViewById(R.id.layout_map_section);
+        splitHandle = findViewById(R.id.split_handle);
+        splitDragCenter = findViewById(R.id.split_drag_center);
+        btnFocusMap = findViewById(R.id.btn_focus_map);
+        btnFocusBalance = findViewById(R.id.btn_focus_balance);
+        btnFocusParams = findViewById(R.id.btn_focus_params);
 
         hudRange = findViewById(R.id.hud_range);
         hudDrift = findViewById(R.id.hud_drift);
@@ -142,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
         tvSolveSummary = findViewById(R.id.tv_solve_summary);
         btnApplySolve = findViewById(R.id.btn_apply_solve);
 
+        tvDispersionCloud = findViewById(R.id.tv_dispersion_cloud);
         tvTotalGroundDist = findViewById(R.id.tv_total_ground_dist);
         tvDriftAngle = findViewById(R.id.tv_drift_angle);
         tvBurnWater = findViewById(R.id.tv_burn_water);
@@ -150,6 +168,69 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
+        // GeoGebra Style Draggable Split Handle Setup
+        if (splitHandle != null && splitHandle.getVisibility() != View.GONE) {
+            View.OnTouchListener dragListener = new View.OnTouchListener() {
+                private float startY;
+                private int startHeight;
+
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (layoutMapSection == null) return false;
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            startY = event.getRawY();
+                            startHeight = layoutMapSection.getHeight();
+                            if (v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+                            return true;
+
+                        case MotionEvent.ACTION_MOVE:
+                            float dy = event.getRawY() - startY;
+                            int newHeight = (int) (startHeight + dy);
+                            int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                            int minH = (int) (180 * getResources().getDisplayMetrics().density);
+                            int maxH = screenHeight - (int) (140 * getResources().getDisplayMetrics().density);
+                            if (newHeight < minH) newHeight = minH;
+                            if (newHeight > maxH) newHeight = maxH;
+                            layoutMapSection.getLayoutParams().height = newHeight;
+                            layoutMapSection.requestLayout();
+                            return true;
+
+                        case MotionEvent.ACTION_UP:
+                        case MotionEvent.ACTION_CANCEL:
+                            if (v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(false);
+                            return true;
+                    }
+                    return false;
+                }
+            };
+
+            splitHandle.setOnTouchListener(dragListener);
+            if (splitDragCenter != null) splitDragCenter.setOnTouchListener(dragListener);
+
+            if (btnFocusMap != null) {
+                btnFocusMap.setOnClickListener(v -> {
+                    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                    layoutMapSection.getLayoutParams().height = (int) (screenHeight * 0.70);
+                    layoutMapSection.requestLayout();
+                });
+            }
+            if (btnFocusBalance != null) {
+                btnFocusBalance.setOnClickListener(v -> {
+                    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                    layoutMapSection.getLayoutParams().height = (int) (screenHeight * 0.45);
+                    layoutMapSection.requestLayout();
+                });
+            }
+            if (btnFocusParams != null) {
+                btnFocusParams.setOnClickListener(v -> {
+                    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                    layoutMapSection.getLayoutParams().height = (int) (screenHeight * 0.25);
+                    layoutMapSection.requestLayout();
+                });
+            }
+        }
+
         rgBottlePreset.setOnCheckedChangeListener((group, checkedId) -> {
             if (isUpdatingUi) return;
             if (checkedId == R.id.rb_spec_500) {
@@ -241,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (isUpdatingUi) return;
-                config.launchYawDeg = progress - 25;
+                config.launchYawDeg = progress - 25.0; // -25..+25 deg
                 updateSimulation();
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -262,6 +343,7 @@ public class MainActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (isUpdatingUi) return;
                 config.windSpeedMs = progress * 0.1;
+                recalculateRelativeWind();
                 updateSimulation();
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -287,10 +369,6 @@ public class MainActivity extends AppCompatActivity {
         btnApplySolve.setOnClickListener(v -> handleApplySolve());
     }
 
-    private void recalculateRelativeWind() {
-        config.windAngleDeg = (config.meteoWindDirectionDeg - config.launchHeadingDeg + 360.0) % 360.0;
-    }
-
     private void requestLocationAndFetchEcmwf() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -299,7 +377,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        executeLocationEcmwfFetch();
+        executeEcmwfFetch();
     }
 
     @Override
@@ -307,115 +385,146 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQ_LOCATION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                executeLocationEcmwfFetch();
+                executeEcmwfFetch();
             } else {
-                viewEcmwfDot.setBackgroundColor(0xFFF43F5E);
-                tvEcmwfStatus.setText("ECMWF: 获取失败(无权限)");
-                Toast.makeText(this, "定位权限被拒绝，无法获取当前位置风速", Toast.LENGTH_SHORT).show();
+                tvEcmwfStatus.setText("定位权限未开放 (ECMWF失败)");
+                tvEcmwfStatus.setTextColor(ContextCompat.getColor(this, R.color.accent_rose));
+                viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_rose));
+                Toast.makeText(this, "需要定位权限以获取当前实况气象，已切换为手动模式", Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    private void executeLocationEcmwfFetch() {
-        tvEcmwfStatus.setText("当前定位同步中...");
-        viewEcmwfDot.setBackgroundColor(0xFFFBBF24);
+    private void executeEcmwfFetch() {
+        tvEcmwfStatus.setText("定位获取ECMWF...");
+        tvEcmwfStatus.setTextColor(ContextCompat.getColor(this, R.color.accent_blue));
+        viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_blue));
 
         WeatherService.fetchEcmwfByDeviceLocation(this, new WeatherService.WeatherCallback() {
             @Override
             public void onSuccess(WeatherService.WeatherData data) {
-                viewEcmwfDot.setBackgroundColor(0xFF34D399);
-                tvEcmwfStatus.setText(String.format(Locale.US, "ECMWF: %.1fm/s · %s", data.windSpeedMs, data.locationName));
+                runOnUiThread(() -> {
+                    if (!isFinishing() && isEcmwfAuto) {
+                        currentLat = data.latitude;
+                        currentLon = data.longitude;
 
-                currentLat = data.latitude;
-                currentLon = data.longitude;
-                fetchRealSatelliteMap(currentLat, currentLon);
+                        config.windSpeedMs = data.windSpeedMs;
+                        config.meteoWindDirectionDeg = data.windDirectionDeg;
 
-                if (isEcmwfAuto) {
-                    isUpdatingUi = true;
-                    config.windSpeedMs = data.windSpeedMs;
-                    config.meteoWindDirectionDeg = data.windDirectionDeg;
-                    recalculateRelativeWind();
+                        isUpdatingUi = true;
+                        sbWindSpeed.setProgress((int) Math.round(data.windSpeedMs * 10.0));
+                        sbWindAngle.setProgress((int) Math.round(data.windDirectionDeg));
+                        isUpdatingUi = false;
 
-                    sbWindSpeed.setProgress((int) (config.windSpeedMs * 10));
-                    sbWindAngle.setProgress((int) config.meteoWindDirectionDeg);
-                    isUpdatingUi = false;
+                        recalculateRelativeWind();
+                        updateSimulation();
 
-                    updateSimulation();
-                }
+                        // Fetch actual satellite map tiles for current location
+                        fetchRealSatelliteMap(currentLat, currentLon);
+
+                        tvEcmwfStatus.setText(String.format(Locale.US, "ECMWF: %.1fm/s %03.0f°", data.windSpeedMs, data.windDirectionDeg));
+                        tvEcmwfStatus.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accent_green));
+                        viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.accent_green));
+                    }
+                });
             }
 
             @Override
             public void onError(String errorMsg) {
-                viewEcmwfDot.setBackgroundColor(0xFFF43F5E);
-                tvEcmwfStatus.setText("ECMWF: 获取失败");
-                Toast.makeText(MainActivity.this, "气象风速获取失败: " + errorMsg, Toast.LENGTH_LONG).show();
+                runOnUiThread(() -> {
+                    if (!isFinishing()) {
+                        tvEcmwfStatus.setText("ECMWF: 获取失败");
+                        tvEcmwfStatus.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
+                        viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
+                        Toast.makeText(MainActivity.this, "气象/定位获取失败: " + errorMsg + "，请手动覆盖", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
 
     /**
-     * Real-time fetch satellite imagery from open map service (ESRI World Imagery)
+     * Download real satellite map tiles from open web mapping services for current latitude/longitude
      */
     private void fetchRealSatelliteMap(double lat, double lon) {
         SatelliteMapFetcher.fetchSatelliteMap(this, lat, lon, new SatelliteMapFetcher.SatelliteCallback() {
             @Override
-            public void onSuccess(SatelliteMapFetcher.SatelliteMapResult result) {
-                trajectoryView.setRealSatelliteMap(result);
-                Toast.makeText(MainActivity.this, "真实卫星底图加载完成", Toast.LENGTH_SHORT).show();
+            public void onSuccess(SatelliteMapFetcher.SatelliteMapResult mapResult) {
+                runOnUiThread(() -> {
+                    if (!isFinishing() && trajectoryView != null) {
+                        trajectoryView.setRealSatelliteMap(mapResult);
+                    }
+                });
             }
 
             @Override
-            public void onError(String errorMsg) {
-                // If offline or failed, user can still use procedural satellite ground or grid
+            public void onError(String error) {
+                // Fallback built-in bitmap already active
             }
         });
     }
 
+    private void recalculateRelativeWind() {
+        double relativeAngle = (config.meteoWindDirectionDeg - config.launchHeadingDeg + 360.0) % 360.0;
+        config.windAngleDeg = relativeAngle;
+    }
+
     private String getCompassHeadingName(double deg) {
-        double d = (deg % 360.0 + 360.0) % 360.0;
-        if (d >= 337.5 || d < 22.5) return "正北 N";
-        if (d < 67.5) return "东北 NE";
-        if (d < 112.5) return "正东 E";
-        if (d < 157.5) return "东南 SE";
-        if (d < 202.5) return "正南 S";
-        if (d < 247.5) return "西南 SW";
-        if (d < 292.5) return "正西 W";
+        deg = (deg % 360.0 + 360.0) % 360.0;
+        if (deg >= 337.5 || deg < 22.5) return "正北 N";
+        if (deg < 67.5) return "东北 NE";
+        if (deg < 112.5) return "正东 E";
+        if (deg < 157.5) return "东南 SE";
+        if (deg < 202.5) return "正南 S";
+        if (deg < 247.5) return "西南 SW";
+        if (deg < 292.5) return "正西 W";
         return "西北 NW";
     }
 
     private void updateSimulation() {
-        recalculateRelativeWind();
-        RocketPhysics.SimResult res = RocketPhysics.simulate(config);
-
-        hudRange.setText(String.format(Locale.US, "%.1fm", res.rangeM));
-        String driftSign = (res.lateralDriftM >= 0) ? "+" : "-";
-        hudDrift.setText(String.format(Locale.US, "%s%.1fm", driftSign, Math.abs(res.lateralDriftM)));
-        hudApogee.setText(String.format(Locale.US, "%.1fm", res.apogeeM));
-        hudSpeed.setText(String.format(Locale.US, "%.0fkm/h", res.maxSpeedKmh));
-        hudTime.setText(String.format(Locale.US, "%.1fs", res.flightTimeS));
-
         tvCdVal.setText(String.format(Locale.US, "%.2f", config.dragCoefficient));
         tvPressureVal.setText(String.format(Locale.US, "%.1f bar", config.pressureBar));
-        double waterRatio = (config.waterVolumeMl / (config.bottleVolumeL * 1000.0)) * 100.0;
-        tvWaterVal.setText(String.format(Locale.US, "%.0fmL (%.0f%%)", config.waterVolumeMl, waterRatio));
+        tvWaterVal.setText(String.format(Locale.US, "%.0f ml", config.waterVolumeMl));
         tvAngleVal.setText(String.format(Locale.US, "%.0f°", config.launchAngleDeg));
 
         tvHeadingVal.setText(String.format(Locale.US, "%03.0f° (%s)", config.launchHeadingDeg, getCompassHeadingName(config.launchHeadingDeg)));
 
-        if (config.launchYawDeg == 0) {
-            tvYawVal.setText("0° (对准)");
+        if (Math.abs(config.launchYawDeg) < 0.1) {
+            tvYawVal.setText("0.0° (居中)");
+            tvYawVal.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
         } else if (config.launchYawDeg > 0) {
-            tvYawVal.setText(String.format(Locale.US, "+%.0f° (偏右)", config.launchYawDeg));
+            tvYawVal.setText(String.format(Locale.US, "+%.1f° (偏右)", config.launchYawDeg));
+            tvYawVal.setTextColor(ContextCompat.getColor(this, R.color.accent_amber));
         } else {
-            tvYawVal.setText(String.format(Locale.US, "%.0f° (偏左)", config.launchYawDeg));
+            tvYawVal.setText(String.format(Locale.US, "%.1f° (偏左)", config.launchYawDeg));
+            tvYawVal.setTextColor(ContextCompat.getColor(this, R.color.accent_blue));
         }
 
         tvWindSpeedVal.setText(String.format(Locale.US, "%.1f m/s", config.windSpeedMs));
         tvWindAngleVal.setText(String.format(Locale.US, "%03.0f° (%s)", config.meteoWindDirectionDeg, getCompassHeadingName(config.meteoWindDirectionDeg)));
 
-        double rad = Math.toRadians(config.windAngleDeg);
-        double headComponent = config.windSpeedMs * Math.cos(rad);
-        double crossComponent = config.windSpeedMs * Math.sin(rad);
+        RocketPhysics.SimResult res = RocketPhysics.simulate(config);
+
+        hudRange.setText(String.format(Locale.US, "%.1fm", res.rangeM));
+
+        if (Math.abs(res.lateralDriftM) < 0.05) {
+            hudDrift.setText("0.0m");
+            hudDrift.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
+        } else if (res.lateralDriftM > 0) {
+            hudDrift.setText(String.format(Locale.US, "+%.1fm", res.lateralDriftM));
+            hudDrift.setTextColor(ContextCompat.getColor(this, R.color.accent_amber));
+        } else {
+            hudDrift.setText(String.format(Locale.US, "%.1fm", res.lateralDriftM));
+            hudDrift.setTextColor(ContextCompat.getColor(this, R.color.accent_blue));
+        }
+
+        hudApogee.setText(String.format(Locale.US, "%.1fm", res.apogeeM));
+        hudSpeed.setText(String.format(Locale.US, "%.0fkm/h", res.maxSpeedKmh));
+        hudTime.setText(String.format(Locale.US, "%.1fs", res.flightTimeS));
+
+        double relRad = Math.toRadians(config.windAngleDeg);
+        double headComponent = config.windSpeedMs * Math.cos(relRad);
+        double crossComponent = config.windSpeedMs * Math.sin(relRad);
 
         String longStr = (Math.abs(headComponent) < 0.2) ? "纵向无风" :
                 (headComponent > 0) ? String.format(Locale.US, "逆风 %.1fm/s", headComponent) :
@@ -426,6 +535,15 @@ public class MainActivity extends AppCompatActivity {
                 String.format(Locale.US, "左侧风 %.1fm/s", Math.abs(crossComponent));
 
         tvCrosswindBreakdown.setText(String.format(Locale.US, "矢量分解: %s · %s (夹角 %.0f°)", longStr, crossStr, config.windAngleDeg));
+
+        // Dispersion Cloud Error Metrics (Quantum electron-cloud-like uncertainty)
+        if (tvDispersionCloud != null && res.dispersion != null) {
+            tvDispersionCloud.setText(String.format(Locale.US,
+                    "落点概率云(电子云): 95%%范围 ±%.1fm (射向) × ±%.1fm (横偏) · CEP: %.1fm",
+                    res.dispersion.semiMajorX,
+                    res.dispersion.semiMinorZ,
+                    res.dispersion.cepRadiusM));
+        }
 
         tvTotalGroundDist.setText(String.format(Locale.US, "地面直线位移: %.1f m", res.totalDistanceM));
         tvDriftAngle.setText(String.format(Locale.US, "侧偏航向角: %.1f°", res.deflectionDeg));

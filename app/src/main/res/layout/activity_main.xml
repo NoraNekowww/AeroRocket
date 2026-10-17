@@ -1,245 +1,323 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
     android:orientation="vertical">
 
-    <!-- Top Header Bar -->
+    <!-- TOP MAP & VISUAL SECTION (Draggable in GeoGebra style) -->
     <LinearLayout
+        android:id="@+id/layout_map_section"
         android:layout_width="match_parent"
-        android:layout_height="46dp"
+        android:layout_height="295dp"
         android:background="#0A0F1D"
-        android:gravity="center_vertical"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp">
+        android:orientation="vertical">
 
+        <!-- Top Header Bar -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="AEROROCKET 3D"
-                android:textColor="@color/accent_blue"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="v1.1.2"
-                android:textColor="@color/accent_amber"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- ECMWF Wind Status Chip (Clickable to fetch current GPS location ECMWF) -->
-        <LinearLayout
-            android:id="@+id/chip_ecmwf"
-            android:layout_width="wrap_content"
-            android:layout_height="26dp"
-            android:background="@drawable/bg_chip"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="#0A0F1D"
             android:gravity="center_vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp">
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
-            <View
-                android:id="@+id/view_ecmwf_dot"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@color/accent_green" />
-
-            <TextView
-                android:id="@+id/tv_ecmwf_status"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="定位获取ECMWF..."
-                android:textColor="@color/text_primary"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.06"
+                    android:text="AEROROCKET 3D"
+                    android:textColor="@color/accent_blue"
+                    android:textSize="14.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="monospace"
+                    android:text="v1.2.3"
+                    android:textColor="@color/accent_amber"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- ECMWF Wind Status Chip -->
+            <LinearLayout
+                android:id="@+id/chip_ecmwf"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:background="@drawable/bg_chip"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <View
+                    android:id="@+id/view_ecmwf_dot"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:background="@color/accent_green" />
+
+                <TextView
+                    android:id="@+id/tv_ecmwf_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="monospace"
+                    android:text="定位获取ECMWF..."
+                    android:textColor="@color/text_primary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Visual 3D / 2D Trajectory View Canvas with Real Satellite Map & Center Orbit -->
+        <com.nz.waterrocket.TrajectoryView
+            android:id="@+id/trajectory_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#0C1322" />
+
+        <!-- 5 HUD Quick Telemetry Cards -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0F172A"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="4dp"
+            android:paddingBottom="4dp">
+
+            <!-- HUD 1: Downrange X -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="1.5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="射程 X"
+                    android:textColor="@color/text_muted"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/hud_range"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0.0m"
+                    android:textColor="@color/accent_rose"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- HUD 2: Crosswind Drift Z -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="1.5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="侧漂 Z"
+                    android:textColor="@color/text_muted"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/hud_drift"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0.0m"
+                    android:textColor="@color/accent_amber"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- HUD 3: Apex Altitude -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="1.5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="顶点高度"
+                    android:textColor="@color/text_muted"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/hud_apogee"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0.0m"
+                    android:textColor="@color/accent_blue"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- HUD 4: Max Speed -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="1.5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="最大极速"
+                    android:textColor="@color/text_muted"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/hud_speed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0km/h"
+                    android:textColor="@color/accent_green"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- HUD 5: Flight Time -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="1.5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="滞空时间"
+                    android:textColor="@color/text_muted"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/hud_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0.0s"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Visual 3D / 2D Trajectory View Canvas with Satellite Ground & Center Orbit -->
-    <com.nz.waterrocket.TrajectoryView
-        android:id="@+id/trajectory_view"
-        android:layout_width="match_parent"
-        android:layout_height="230dp"
-        android:background="#0C1322" />
-
-    <!-- 5 HUD Quick Telemetry Cards -->
+    <!-- GEOGEBRA STYLE DRAGGABLE SPLIT HANDLE BAR -->
     <LinearLayout
+        android:id="@+id/split_handle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="28dp"
+        android:background="#0A1120"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp"
-        android:background="#0F172A">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
 
-        <!-- HUD 1: Downrange X -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_margin="1.5dp"
-            android:background="@drawable/bg_card"
+        <TextView
+            android:id="@+id/btn_focus_map"
+            android:layout_width="wrap_content"
+            android:layout_height="20dp"
+            android:background="@drawable/bg_chip"
             android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="重点地图"
+            android:textColor="@color/accent_blue"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="射程 X"
-                android:textColor="@color/text_muted"
-                android:textSize="9.5sp" />
+        <LinearLayout
+            android:id="@+id/split_drag_center"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/hud_range"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="0.0m"
-                android:textColor="@color/accent_rose"
-                android:textSize="13.5sp"
-                android:textStyle="bold" />
+            <!-- Capsule Drag Bar -->
+            <View
+                android:layout_width="44dp"
+                android:layout_height="4dp"
+                android:background="@drawable/bg_chip" />
         </LinearLayout>
 
-        <!-- HUD 2: Crosswind Drift Z -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_margin="1.5dp"
-            android:background="@drawable/bg_card"
+        <TextView
+            android:id="@+id/btn_focus_balance"
+            android:layout_width="wrap_content"
+            android:layout_height="20dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_chip"
             android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="对半平衡"
+            android:textColor="@color/text_secondary"
+            android:textSize="9.5sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="侧漂 Z"
-                android:textColor="@color/text_muted"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/hud_drift"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="0.0m"
-                android:textColor="@color/accent_amber"
-                android:textSize="13.5sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- HUD 3: Apex Altitude -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_margin="1.5dp"
-            android:background="@drawable/bg_card"
+        <TextView
+            android:id="@+id/btn_focus_params"
+            android:layout_width="wrap_content"
+            android:layout_height="20dp"
+            android:background="@drawable/bg_chip"
             android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="顶点高度"
-                android:textColor="@color/text_muted"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/hud_apogee"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="0.0m"
-                android:textColor="@color/accent_blue"
-                android:textSize="13.5sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- HUD 4: Max Speed -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_margin="1.5dp"
-            android:background="@drawable/bg_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="最大极速"
-                android:textColor="@color/text_muted"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/hud_speed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="0km/h"
-                android:textColor="@color/accent_green"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- HUD 5: Flight Time -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_margin="1.5dp"
-            android:background="@drawable/bg_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="滞空时间"
-                android:textColor="@color/text_muted"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/hud_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="0.0s"
-                android:textColor="@color/text_primary"
-                android:textSize="13.5sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="重点参数"
+            android:textColor="@color/accent_amber"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Scrollable Detailed Controls -->
+    <!-- BOTTOM DETAILED CONTROLS SCROLLVIEW -->
     <ScrollView
+        android:id="@+id/layout_scroll_params"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -379,7 +457,7 @@
                         android:fontFamily="monospace"
                         android:gravity="end"
                         android:text="4.5 bar"
-                        android:textColor="@color/accent_blue"
+                        android:textColor="@color/accent_rose"
                         android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -395,7 +473,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="初始装水"
+                        android:text="装水量"
                         android:textColor="@color/text_secondary"
                         android:textSize="11.5sp" />
 
@@ -404,7 +482,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:max="1000"
+                        android:max="1050"
                         android:progress="500" />
 
                     <TextView
@@ -413,17 +491,17 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:gravity="end"
-                        android:text="500mL (33%)"
+                        android:text="500 ml"
                         android:textColor="@color/accent_blue"
-                        android:textSize="10.5sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Nozzle Throat Selection -->
+                <!-- Nozzle Selection -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -436,33 +514,33 @@
 
                     <RadioGroup
                         android:id="@+id/rg_nozzle"
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:orientation="horizontal">
 
                         <RadioButton
                             android:id="@+id/rb_nozzle_21"
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:checked="true"
-                            android:text="标准 21mm"
+                            android:text="21mm 标准瓶口"
                             android:textColor="@color/text_primary"
-                            android:textSize="11.5sp" />
+                            android:textSize="11sp" />
 
                         <RadioButton
                             android:id="@+id/rb_nozzle_9"
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="缩径 9mm"
+                            android:layout_marginStart="12dp"
+                            android:text="9mm 缩径喷嘴"
                             android:textColor="@color/text_primary"
-                            android:textSize="11.5sp" />
+                            android:textSize="11sp" />
                     </RadioGroup>
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Card 2: 3D Attitude, Heading (0-360 deg) & Location ECMWF Wind -->
+            <!-- Card 2: 3D Launch Attitude & Compass Heading -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -471,32 +549,13 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="3D 发射航向与定位气象风场"
-                        android:textColor="@color/accent_blue"
-                        android:textSize="12.5sp"
-                        android:textStyle="bold" />
-
-                    <Button
-                        android:id="@+id/btn_refresh_location"
-                        android:layout_width="wrap_content"
-                        android:layout_height="28dp"
-                        android:background="@drawable/bg_btn_secondary"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:text="获取当前定位ECMWF"
-                        android:textColor="@color/accent_blue"
-                        android:textSize="10.5sp" />
-                </LinearLayout>
+                    android:text="3D 发射姿态与发射真北航向角"
+                    android:textColor="@color/accent_amber"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
 
                 <!-- Launch Pitch Angle -->
                 <LinearLayout
@@ -528,16 +587,16 @@
                         android:fontFamily="monospace"
                         android:gravity="end"
                         android:text="45°"
-                        android:textColor="@color/accent_blue"
+                        android:textColor="@color/accent_amber"
                         android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Launch Heading Direction (0-360 degrees True North) -->
+                <!-- Launch Azimuth Heading (0..360 deg) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -563,23 +622,23 @@
                         android:fontFamily="monospace"
                         android:gravity="end"
                         android:text="090° (正东)"
-                        android:textColor="@color/accent_rose"
+                        android:textColor="@color/accent_blue"
                         android:textSize="11sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Launch Yaw Aiming Offset Angle -->
+                <!-- Launch Yaw Aiming Offset for Crosswind compensation -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="偏航瞄准角"
+                        android:text="偏航配平角"
                         android:textColor="@color/text_secondary"
                         android:textSize="11.5sp" />
 
@@ -597,66 +656,88 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:gravity="end"
-                        android:text="0° (对准)"
-                        android:textColor="@color/accent_amber"
-                        android:textSize="11sp"
+                        android:text="0.0°"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
+            </LinearLayout>
 
-                <!-- Wind Mode Toggle -->
+            <!-- Card 3: 3D Wind Field (ECMWF Real-time vs Manual) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="12dp">
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <TextView
-                        android:layout_width="80dp"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="风速模式"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11.5sp" />
+                        android:layout_weight="1"
+                        android:text="3D 真实风场 (ECMWF 实时 / 手动覆盖)"
+                        android:textColor="@color/accent_green"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
 
-                    <RadioGroup
-                        android:id="@+id/rg_wind_mode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <RadioButton
-                            android:id="@+id/rb_wind_ecmwf"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:checked="true"
-                            android:text="当前定位ECMWF"
-                            android:textColor="@color/text_primary"
-                            android:textSize="11sp" />
-
-                        <RadioButton
-                            android:id="@+id/rb_wind_manual"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="手动覆盖"
-                            android:textColor="@color/text_primary"
-                            android:textSize="11sp" />
-                    </RadioGroup>
+                    <Button
+                        android:id="@+id/btn_refresh_location"
+                        android:layout_width="wrap_content"
+                        android:layout_height="24dp"
+                        android:background="@drawable/bg_chip"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:text="定位更新"
+                        android:textColor="@color/accent_blue"
+                        android:textSize="10sp" />
                 </LinearLayout>
 
-                <!-- Wind Speed Control -->
-                <LinearLayout
+                <RadioGroup
+                    android:id="@+id/rg_wind_mode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rb_wind_ecmwf"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:checked="true"
+                        android:text="当前定位ECMWF实况"
+                        android:textColor="@color/text_primary"
+                        android:textSize="11sp" />
+
+                    <RadioButton
+                        android:id="@+id/rb_wind_manual"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="手动覆盖风速风向"
+                        android:textColor="@color/text_primary"
+                        android:textSize="11sp" />
+                </RadioGroup>
+
+                <!-- Wind Speed Slider -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="地表风速"
+                        android:text="地面10m风速"
                         android:textColor="@color/text_secondary"
                         android:textSize="11.5sp" />
 
@@ -665,7 +746,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:max="150"
+                        android:max="200"
                         android:progress="0" />
 
                     <TextView
@@ -675,23 +756,23 @@
                         android:fontFamily="monospace"
                         android:gravity="end"
                         android:text="0.0 m/s"
-                        android:textColor="@color/accent_blue"
+                        android:textColor="@color/accent_green"
                         android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Meteo Wind Direction (0-360 degrees) -->
+                <!-- Meteorological Wind Direction (0..360 deg) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="气象风向"
+                        android:text="真北气象风向"
                         android:textColor="@color/text_secondary"
                         android:textSize="11.5sp" />
 
@@ -710,26 +791,24 @@
                         android:fontFamily="monospace"
                         android:gravity="end"
                         android:text="000° (北风)"
-                        android:textColor="@color/accent_blue"
-                        android:textSize="10.5sp"
+                        android:textColor="@color/accent_green"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Real-time Crosswind & Headwind Decomposition -->
+                <!-- Relative Crosswind / Headwind Breakdown Text -->
                 <TextView
                     android:id="@+id/tv_crosswind_breakdown"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:background="#0A1120"
                     android:fontFamily="monospace"
-                    android:padding="6dp"
-                    android:text="矢量分解: 纵向 0.0 m/s · 横向侧风 0.0 m/s"
-                    android:textColor="@color/accent_amber"
+                    android:text="相对风分解: 无风"
+                    android:textColor="@color/text_muted"
                     android:textSize="10.5sp" />
             </LinearLayout>
 
-            <!-- Card 3: Target Inverse Solver (含侧风瞄准补偿) -->
+            <!-- Card 4: Target Inverse Solver (目标反推最优发射配置) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -741,8 +820,8 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="目标反推最佳发射参数 (含侧风补偿)"
-                    android:textColor="@color/accent_amber"
+                    android:text="目标反推最优发射参数 (含侧风偏航配平)"
+                    android:textColor="@color/accent_rose"
                     android:textSize="12.5sp"
                     android:textStyle="bold" />
 
@@ -756,7 +835,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="目标射程"
+                        android:text="目标落点距离"
                         android:textColor="@color/text_secondary"
                         android:textSize="11.5sp" />
 
@@ -767,23 +846,21 @@
                         android:layout_weight="1"
                         android:background="@drawable/bg_chip"
                         android:fontFamily="monospace"
-                        android:gravity="center"
-                        android:hint="目标距离 (m)"
+                        android:hint="输入目标米数 (如 80)"
                         android:inputType="numberDecimal"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:text="100.0"
-                        android:textColor="@color/accent_amber"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:textColor="@color/text_primary"
                         android:textColorHint="@color/text_muted"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <TextView
-                        android:layout_width="28dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:text="m"
+                        android:layout_marginStart="6dp"
+                        android:text="米 (m)"
                         android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
+                        android:textSize="11sp" />
                 </LinearLayout>
 
                 <RadioGroup
@@ -857,7 +934,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Card 4: Structural & Advanced Physics Details -->
+            <!-- Card 5: Structural & Advanced Physics Details + Dispersion Cloud -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -869,9 +946,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="3D 空间动力学与碰撞参数"
+                    android:text="3D 空间动力学与落点散布范围"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- Dispersion Cloud Error Metric (Quantum probability cloud) -->
+                <TextView
+                    android:id="@+id/tv_dispersion_cloud"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="#0F172A"
+                    android:fontFamily="monospace"
+                    android:padding="6dp"
+                    android:text="落点概率云(电子云): 95%范围 ±0.0m × ±0.0m · CEP: 0.0m"
+                    android:textColor="@color/accent_rose"
+                    android:textSize="10.5sp"
                     android:textStyle="bold" />
 
                 <LinearLayout

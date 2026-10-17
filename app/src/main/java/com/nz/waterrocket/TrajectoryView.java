@@ -7,7 +7,9 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -25,7 +27,7 @@ public class TrajectoryView extends View {
     public static final int MODE_3D = 1;
 
     private int currentMode = MODE_3D;
-    private boolean showSatelliteMap = true; // User can freely toggle this feature!
+    private boolean showSatelliteMap = true; // User can freely toggle!
 
     private RocketPhysics.SimResult currentResult;
     private double targetDistanceM = -1.0;
@@ -73,12 +75,16 @@ public class TrajectoryView extends View {
     private final Paint railPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dropLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint satMeshPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint cloudGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint cloudRingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint cloudDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // Paths
     private final Path waterPath = new Path();
     private final Path airPath = new Path();
     private final Path coastPath = new Path();
     private final Path shadowPath = new Path();
+    private final Path cloudEllipsePath = new Path();
 
     private final RectF plotArea2D = new RectF();
 
@@ -144,6 +150,17 @@ public class TrajectoryView extends View {
         railPaint.setColor(Color.parseColor("#FB7185"));
         railPaint.setStrokeWidth(2.5f * density);
         railPaint.setStyle(Paint.Style.STROKE);
+
+        cloudRingPaint.setColor(Color.parseColor("#FDA4AF")); // Rose light
+        cloudRingPaint.setStrokeWidth(1.2f * density);
+        cloudRingPaint.setStyle(Paint.Style.STROKE);
+        cloudRingPaint.setPathEffect(new DashPathEffect(new float[]{3f * density, 3f * density}, 0));
+
+        cloudDotPaint.setColor(Color.parseColor("#FECDD3"));
+        cloudDotPaint.setStyle(Paint.Style.FILL);
+
+        satMeshPaint.setFilterBitmap(true);
+        satMeshPaint.setDither(true);
 
         fallbackSatelliteBitmap = SatelliteTileService.getLaunchFieldSatelliteBitmap(512, 512);
 
@@ -279,8 +296,7 @@ public class TrajectoryView extends View {
                         float dy = y - lastTouchY;
 
                         camAzimuthDeg = (camAzimuthDeg - dx * 0.42f + 360f) % 360f;
-
-                        // FLIPPED VERTICAL SCROLL: Natural intuition
+                        // Flipped vertical scroll: natural intuitive drag
                         camElevationDeg = Math.max(5.0f, Math.min(88.0f, camElevationDeg + dy * 0.35f));
 
                         lastTouchX = x;
@@ -367,7 +383,7 @@ public class TrajectoryView extends View {
         double pivotZ = (currentResult != null) ? (currentResult.lateralDriftM * 0.5) : 0.0;
 
         float cx = w * 0.50f;
-        float cy = h * 0.60f;
+        float cy = h * 0.58f;
         float scaleWorld = (Math.min(w, h) * 0.70f / (float) boxSize) * camScale;
 
         double azRad = Math.toRadians(camAzimuthDeg);
@@ -379,9 +395,7 @@ public class TrajectoryView extends View {
         double gridLimitX = Math.ceil(boxSize / gridStep) * gridStep;
         double gridLimitZ = Math.ceil(boxSize * 0.5 / gridStep) * gridStep;
 
-        // =====================================================================
-        // 1. REAL SATELLITE MAP 3D MESH PROJECTION (ESRI World Imagery Tile)
-        // =====================================================================
+        // 1. SATELLITE MAP 3D MESH PROJECTION
         Bitmap activeSatBmp = (satelliteMapData != null && satelliteMapData.mapBitmap != null)
                 ? satelliteMapData.mapBitmap : fallbackSatelliteBitmap;
 
@@ -401,7 +415,7 @@ public class TrajectoryView extends View {
             canvas.drawBitmapMesh(activeSatBmp, MESH_WIDTH, MESH_HEIGHT, meshVerts, 0, null, 0, satMeshPaint);
         }
 
-        // 2. Ground Grid Lines (Subtle reference overlay)
+        // 2. Ground Grid Lines
         for (double z = -gridLimitZ; z <= gridLimitZ; z += gridStep) {
             Point2D pStart = project3D(0, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             Point2D pEnd = project3D(gridLimitX, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
@@ -441,12 +455,10 @@ public class TrajectoryView extends View {
         canvas.drawLine(origin.px, origin.py, zEnd.px, zEnd.py, pAxisZ);
         canvas.drawText("Z 侧偏", zEnd.px + 4f * density, zEnd.py + 4f * density, pAxisZ);
 
-        // =====================================================================
-        // 4. HIGHLIGHT: LAUNCH SITE (发射点高亮标示)
-        // =====================================================================
+        // 4. Highlight: Launch Site
         drawLaunchSiteBadge(canvas, origin, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
 
-        // 5. Target Ring on Satellite Ground (if set)
+        // 5. Target Marker on Ground
         if (targetDistanceM > 0) {
             Point2D tCenter = project3D(targetDistanceM, 0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             canvas.drawCircle(tCenter.px, tCenter.py, 6f * density, targetPaint);
@@ -466,7 +478,14 @@ public class TrajectoryView extends View {
 
         List<RocketPhysics.TrajectoryPoint> traj = currentResult.trajectory;
 
-        // 6. Ground Shadow Trace on Satellite Surface (X, 0, Z)
+        // =====================================================================
+        // 6. ELECTRON CLOUD DISPERSION (落点概率散布云像电子云一样渲染)
+        // =====================================================================
+        RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
+        Point2D impactPt = project3D(lastPt.x, 0, lastPt.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+        drawImpactDispersionCloud(canvas, lastPt, impactPt, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+
+        // 7. Ground Shadow Trace on Satellite Surface (X, 0, Z)
         shadowPath.reset();
         for (int i = 0; i < traj.size(); i++) {
             RocketPhysics.TrajectoryPoint pt = traj.get(i);
@@ -476,7 +495,7 @@ public class TrajectoryView extends View {
         }
         canvas.drawPath(shadowPath, shadowPathPaint);
 
-        // 7. 3D Flight Trajectory
+        // 8. 3D Flight Trajectory
         waterPath.reset();
         airPath.reset();
         coastPath.reset();
@@ -516,7 +535,7 @@ public class TrajectoryView extends View {
         canvas.drawPath(airPath, airPathPaint);
         canvas.drawPath(coastPath, coastPathPaint);
 
-        // 8. Apex Highlight with ground drop line
+        // 9. Apex Highlight with ground drop line
         if (apexPt2D != null && apexPt3D != null) {
             Point2D apexGround = project3D(apexPt3D.x, 0, apexPt3D.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             canvas.drawLine(apexPt2D.px, apexPt2D.py, apexGround.px, apexGround.py, dropLinePaint);
@@ -533,14 +552,10 @@ public class TrajectoryView extends View {
                     apexPt2D.px + 5f * density, apexPt2D.py - 4f * density, pTxt);
         }
 
-        // =====================================================================
-        // 9. HIGHLIGHT: IMPACT SITE (落地点高亮标示)
-        // =====================================================================
-        RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
-        Point2D impactPt = project3D(lastPt.x, 0, lastPt.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+        // 10. Highlight: Impact Site Marker & Direct Line
         drawImpactSiteBadge(canvas, impactPt, lastPt, origin, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
 
-        // 10. Bottom Hint
+        // 11. Bottom Hint
         Paint tipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         tipPaint.setColor(Color.parseColor("#475569"));
         tipPaint.setTextSize(8.5f * density);
@@ -548,11 +563,52 @@ public class TrajectoryView extends View {
         canvas.drawText(tip, (w - tipPaint.measureText(tip)) / 2f, h - 6f * density, tipPaint);
     }
 
+    /**
+     * Draw quantum electron-cloud-like landing dispersion probability density
+     */
+    private void drawImpactDispersionCloud(Canvas canvas, RocketPhysics.TrajectoryPoint lastPt, Point2D impactPt,
+                                           float density, double pivotX, double pivotY, double pivotZ,
+                                           float cx, float cy, float scaleWorld,
+                                           double sinAz, double cosAz, double sinEl, double cosEl) {
+        if (currentResult == null || currentResult.dispersion == null) return;
+        RocketPhysics.DispersionCloud disp = currentResult.dispersion;
+
+        // 1. Electron Cloud Smooth Radial Glow (Quantum probability cloud effect)
+        float radiusPx = (float) (disp.semiMajorX * scaleWorld);
+        if (radiusPx > 8f * density) {
+            cloudGlowPaint.setShader(new RadialGradient(impactPt.px, impactPt.py, radiusPx,
+                    new int[]{Color.parseColor("#80F43F5E"), Color.parseColor("#35F43F5E"), Color.TRANSPARENT},
+                    new float[]{0.0f, 0.45f, 1.0f}, Shader.TileMode.CLAMP));
+            canvas.drawCircle(impactPt.px, impactPt.py, radiusPx, cloudGlowPaint);
+        }
+
+        // 2. 95% Confidence Ellipse Perimeter Path
+        cloudEllipsePath.reset();
+        int steps = 24;
+        for (int i = 0; i <= steps; i++) {
+            double angle = (2.0 * Math.PI * i) / steps;
+            double ex = lastPt.x + disp.semiMajorX * Math.cos(angle);
+            double ez = lastPt.z + disp.semiMinorZ * Math.sin(angle);
+            Point2D pt = project3D(ex, 0, ez, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+            if (i == 0) cloudEllipsePath.moveTo(pt.px, pt.py);
+            else cloudEllipsePath.lineTo(pt.px, pt.py);
+        }
+        canvas.drawPath(cloudEllipsePath, cloudRingPaint);
+
+        // 3. Monte-Carlo Discrete Probability Particles (Like electron cloud quantum dots)
+        List<float[]> particles = disp.cloudParticles;
+        for (int i = 0; i < particles.size(); i++) {
+            float[] offset = particles.get(i);
+            Point2D dotPt = project3D(lastPt.x + offset[0], 0, lastPt.z + offset[1],
+                    pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+            canvas.drawCircle(dotPt.px, dotPt.py, 1.3f * density, cloudDotPaint);
+        }
+    }
+
     private void drawLaunchSiteBadge(Canvas canvas, Point2D origin, float density,
                                      double pivotX, double pivotY, double pivotZ,
                                      float cx, float cy, float scaleWorld,
                                      double sinAz, double cosAz, double sinEl, double cosEl) {
-        // Multi-ring radar pulse at launch pad
         Paint pRing = new Paint(Paint.ANTI_ALIAS_FLAG);
         pRing.setColor(Color.parseColor("#38BDF8"));
         pRing.setStyle(Paint.Style.STROKE);
@@ -565,14 +621,12 @@ public class TrajectoryView extends View {
         pPad.setStyle(Paint.Style.FILL);
         canvas.drawCircle(origin.px, origin.py, 4.5f * density, pPad);
 
-        // Vertical 3D Launch Pole
         Point2D poleTop = project3D(0, 10.0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
         Paint pPole = new Paint(Paint.ANTI_ALIAS_FLAG);
         pPole.setColor(Color.parseColor("#38BDF8"));
         pPole.setStrokeWidth(1.5f * density);
         canvas.drawLine(origin.px, origin.py, poleTop.px, poleTop.py, pPole);
 
-        // Launch Tag Bubble
         String text = "发射点 (0,0)";
         Paint pTagText = new Paint(Paint.ANTI_ALIAS_FLAG);
         pTagText.setColor(Color.parseColor("#FFFFFF"));
@@ -593,20 +647,17 @@ public class TrajectoryView extends View {
                                      double pivotX, double pivotY, double pivotZ,
                                      float cx, float cy, float scaleWorld,
                                      double sinAz, double cosAz, double sinEl, double cosEl) {
-        // Impact ground concentric rings
         Paint pBlast = new Paint(Paint.ANTI_ALIAS_FLAG);
         pBlast.setColor(Color.parseColor("#F43F5E"));
         pBlast.setStyle(Paint.Style.STROKE);
         pBlast.setStrokeWidth(1.5f * density);
-        canvas.drawCircle(impactPt.px, impactPt.py, 7f * density, pBlast);
-        canvas.drawCircle(impactPt.px, impactPt.py, 14f * density, pBlast);
+        canvas.drawCircle(impactPt.px, impactPt.py, 6f * density, pBlast);
 
         Paint pCenter = new Paint(Paint.ANTI_ALIAS_FLAG);
         pCenter.setColor(Color.parseColor("#E11D48"));
         pCenter.setStyle(Paint.Style.FILL);
-        canvas.drawCircle(impactPt.px, impactPt.py, 4.5f * density, pCenter);
+        canvas.drawCircle(impactPt.px, impactPt.py, 4f * density, pCenter);
 
-        // Ground range connection line
         Paint pDirectLine = new Paint(Paint.ANTI_ALIAS_FLAG);
         pDirectLine.setColor(Color.parseColor("#F43F5E"));
         pDirectLine.setStrokeWidth(1.4f * density);
@@ -614,17 +665,18 @@ public class TrajectoryView extends View {
         pDirectLine.setPathEffect(new DashPathEffect(new float[]{4f * density, 3f * density}, 0));
         canvas.drawLine(origin.px, origin.py, impactPt.px, impactPt.py, pDirectLine);
 
-        // Vertical 3D Impact Flag Pole
         Point2D flagTop = project3D(lastPt.x, 10.0, lastPt.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
         Paint pFlag = new Paint(Paint.ANTI_ALIAS_FLAG);
         pFlag.setColor(Color.parseColor("#F43F5E"));
         pFlag.setStrokeWidth(1.5f * density);
         canvas.drawLine(impactPt.px, impactPt.py, flagTop.px, flagTop.py, pFlag);
 
-        // Impact Tag Bubble
         String driftDir = (currentResult.lateralDriftM >= 0) ? "偏右" : "偏左";
-        String text = String.format(Locale.US, "落点: %.1fm (%s%.1fm)",
-                currentResult.rangeM, driftDir, Math.abs(currentResult.lateralDriftM));
+        String cepStr = (currentResult.dispersion != null) ?
+                String.format(Locale.US, " [云CEP:±%.1fm]", currentResult.dispersion.cepRadiusM) : "";
+        String text = String.format(Locale.US, "落点: %.1fm (%s%.1fm)%s",
+                currentResult.rangeM, driftDir, Math.abs(currentResult.lateralDriftM), cepStr);
+
         Paint pTagText = new Paint(Paint.ANTI_ALIAS_FLAG);
         pTagText.setColor(Color.parseColor("#FFFFFF"));
         pTagText.setTextSize(9f * density);
@@ -759,10 +811,19 @@ public class TrajectoryView extends View {
         launchTxt.setFakeBoldText(true);
         canvas.drawText("发射点", plotArea2D.left - 4f * density, plotArea2D.bottom - 10f * density, launchTxt);
 
-        // 2D Impact Point marker
+        // 2D Impact Point marker with dispersion range bar
         RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
         float landPx = (float) (plotArea2D.left + (lastPt.x / maxX) * plotArea2D.width());
         float landPy = plotArea2D.bottom;
+
+        // 2D Dispersion cloud horizontal uncertainty bar
+        if (currentResult.dispersion != null) {
+            float dispPx = (float) (currentResult.dispersion.semiMajorX / maxX * plotArea2D.width());
+            Paint pBar = new Paint(Paint.ANTI_ALIAS_FLAG);
+            pBar.setColor(Color.parseColor("#50F43F5E"));
+            pBar.setStrokeWidth(6f * density);
+            canvas.drawLine(landPx - dispPx, landPy, landPx + dispPx, landPy, pBar);
+        }
 
         Paint landDot = new Paint(Paint.ANTI_ALIAS_FLAG);
         landDot.setColor(Color.parseColor("#F43F5E"));
@@ -784,7 +845,6 @@ public class TrajectoryView extends View {
         float btnHeight = 24f * density;
         float y0 = 6f * density;
 
-        // 1. Mode Switcher (2D / 3D)
         float modeW = 58f * density;
         btnModeBounds.set(8f * density, y0, 8f * density + modeW, y0 + btnHeight);
         drawChip(canvas, btnModeBounds, density,
@@ -792,17 +852,15 @@ public class TrajectoryView extends View {
                 currentMode == MODE_3D ? Color.parseColor("#38BDF8") : Color.parseColor("#94A3B8"),
                 true);
 
-        // 2. Real Satellite Imagery Toggle Switcher (用户可随时开启或关闭!)
-        float satW = 60f * density;
+        float satW = 56f * density;
         float satX = btnModeBounds.right + 5f * density;
         btnSatBounds.set(satX, y0, satX + satW, y0 + btnHeight);
         drawChip(canvas, btnSatBounds, density,
-                showSatelliteMap ? "卫星: 开" : "卫星: 关",
+                showSatelliteMap ? "卫星开" : "卫星关",
                 showSatelliteMap ? Color.parseColor("#34D399") : Color.parseColor("#64748B"),
                 showSatelliteMap);
 
         if (currentMode == MODE_3D) {
-            // 3. Preset: Top-down view (俯视看发射点与落点及侧漂)
             float topW = 42f * density;
             float topX = btnSatBounds.right + 5f * density;
             btnTopViewBounds.set(topX, y0, topX + topW, y0 + btnHeight);
@@ -810,7 +868,6 @@ public class TrajectoryView extends View {
             drawChip(canvas, btnTopViewBounds, density, "俯视",
                     isTopActive ? Color.parseColor("#FBBF24") : Color.parseColor("#64748B"), isTopActive);
 
-            // 4. Preset: Side view (侧视看高度)
             float sideW = 42f * density;
             float sideX = btnTopViewBounds.right + 5f * density;
             btnSideViewBounds.set(sideX, y0, sideX + sideW, y0 + btnHeight);
@@ -818,14 +875,12 @@ public class TrajectoryView extends View {
             drawChip(canvas, btnSideViewBounds, density, "侧视",
                     isSideActive ? Color.parseColor("#FBBF24") : Color.parseColor("#64748B"), isSideActive);
 
-            // 5. Preset: Reset (复位)
             float rstW = 42f * density;
             float rstX = btnSideViewBounds.right + 5f * density;
             btnResetBounds.set(rstX, y0, rstX + rstW, y0 + btnHeight);
             drawChip(canvas, btnResetBounds, density, "复位", Color.parseColor("#94A3B8"), false);
         }
 
-        // 6. Wind HUD on top right
         drawWindHud(canvas, density, width - 8f * density, y0);
     }
 
