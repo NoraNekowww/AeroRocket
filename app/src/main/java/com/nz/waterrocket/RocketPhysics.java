@@ -38,18 +38,17 @@ public class RocketPhysics {
 
     // 3D Simulation configuration
     public static class RocketConfig {
-        // Bottle specs
         public String specName = "1.5L 标准可乐瓶";
-        public double bottleVolumeL = 1.5;         // L (0.50L, 1.25L, 1.50L, 2.00L)
-        public double bottleDiameterMm = 90.0;     // mm (66mm for 500mL, 88mm for 1.25L, 90mm for 1.5L, 104mm for 2L)
-        public double nozzleDiameterMm = 21.0;     // mm (standard bottle mouth ~21mm)
-        public double dryMassG = 150.0;            // g (dry weight)
-        public double dragCoefficient = 0.35;      // Cd (adjustable: 0.15 .. 0.70)
+        public double bottleVolumeL = 1.5;         // L
+        public double bottleDiameterMm = 90.0;     // mm
+        public double nozzleDiameterMm = 21.0;     // mm
+        public double dryMassG = 150.0;            // g
+        public double dragCoefficient = 0.35;      // Cd (0.15 .. 0.70)
         public double launchRailLengthM = 1.0;      // m
 
         // Launch attitude
         public double launchAngleDeg = 45.0;       // pitch angle (30..85 deg)
-        public double launchHeadingDeg = 90.0;     // True North launch heading azimuth (0..360 deg, 0=N, 90=E, 180=S, 270=W)
+        public double launchHeadingDeg = 90.0;     // True North launch heading azimuth (0..360 deg)
         public double launchYawDeg = 0.0;          // yaw aiming offset (-25..+25 deg for crosswind trim)
 
         // Propulsion
@@ -58,20 +57,19 @@ public class RocketPhysics {
 
         // 3D Environment wind field
         public double windSpeedMs = 0.0;           // m/s
-        public double meteoWindDirectionDeg = 0.0; // Meteorological wind direction (where wind comes from, 0=North, 90=East)
-        public double windAngleDeg = 0.0;          // Relative wind angle to launch axis (calculated automatically or manual)
+        public double meteoWindDirectionDeg = 0.0; // Meteorological wind direction (where wind comes from)
+        public double windAngleDeg = 0.0;          // Relative wind angle to launch axis
     }
 
-    // Preset bottle specifications
     public static void applyBottlePreset(RocketConfig cfg, int presetId) {
         switch (presetId) {
-            case 0: // 500mL Mini Coke bottle (Experimental Spec 试验规格)
+            case 0: // 500mL Mini Coke bottle (Experimental Spec)
                 cfg.specName = "500mL 试验小可乐瓶";
                 cfg.bottleVolumeL = 0.50;
-                cfg.bottleDiameterMm = 66.0;   // slender small bottle diameter
-                cfg.dryMassG = 85.0;           // lightweight airframe
-                cfg.dragCoefficient = 0.28;    // lower drag coefficient due to smaller frontal area
-                cfg.waterVolumeMl = 165.0;     // ~33% water
+                cfg.bottleDiameterMm = 66.0;
+                cfg.dryMassG = 85.0;
+                cfg.dragCoefficient = 0.28;
+                cfg.waterVolumeMl = 165.0;
                 break;
             case 1: // 1.25L Medium
                 cfg.specName = "1.25L 中号可乐瓶";
@@ -123,7 +121,7 @@ public class RocketPhysics {
         public double recommendedPressureBar;
         public double recommendedWaterMl;
         public double recommendedAngleDeg;
-        public double recommendedYawDeg;           // Recommended yaw aiming offset to null crosswind drift
+        public double recommendedYawDeg;
         public double predictedRangeM;
         public double predictedDriftM;
         public double predictedApogeeM;
@@ -161,11 +159,8 @@ public class RocketPhysics {
         double uLaunchY = Math.sin(thetaRad);
         double uLaunchZ = Math.cos(thetaRad) * Math.sin(psiRad);
 
-        // Calculate relative wind angle between meteorological wind direction and rocket launch heading
-        // relativeAngle = (meteoWind - launchHeading + 360) % 360
-        double relativeWindAngle = cfg.windAngleDeg;
-
-        double windAngleRad = Math.toRadians(relativeWindAngle);
+        // Wind velocity vector in local launch coordinates
+        double windAngleRad = Math.toRadians(cfg.windAngleDeg);
         double windVx = -cfg.windSpeedMs * Math.cos(windAngleRad);
         double windVz = -cfg.windSpeedMs * Math.sin(windAngleRad);
 
@@ -184,6 +179,11 @@ public class RocketPhysics {
         double maxAlt = 0.0;
         double maxSpeed = 0.0;
 
+        // Rocket body attitude vector (starts locked to launch rail)
+        double ub_x = uLaunchX;
+        double ub_y = uLaunchY;
+        double ub_z = uLaunchZ;
+
         res.trajectory.add(new TrajectoryPoint(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0));
         int sampleCounter = 0;
 
@@ -192,29 +192,53 @@ public class RocketPhysics {
             if (vMag > maxSpeed) maxSpeed = vMag;
             if (y > maxAlt) maxAlt = y;
 
-            double ux, uy, uz;
-            double distRail = Math.sqrt(x * x + y * y + z * z);
-
             double vRelX = vx - windVx;
             double vRelY = vy;
             double vRelZ = vz - windVz;
             double vRelMag = Math.sqrt(vRelX * vRelX + vRelY * vRelY + vRelZ * vRelZ);
 
+            double distRail = Math.sqrt(x * x + y * y + z * z);
+
+            // =================================================================
+            // TRUE ROCKET ATTITUDE DYNAMICS (Resolves nozzle size drift inversion bug)
+            // =================================================================
             if (distRail < cfg.launchRailLengthM) {
-                ux = uLaunchX;
-                uy = uLaunchY;
-                uz = uLaunchZ;
-            } else if (vRelMag > 0.2) {
-                ux = vRelX / vRelMag;
-                uy = vRelY / vRelMag;
-                uz = vRelZ / vRelMag;
-            } else {
-                ux = uLaunchX;
-                uy = uLaunchY;
-                uz = uLaunchZ;
+                // Inside rail: rigidly constrained to rail heading
+                ub_x = uLaunchX;
+                ub_y = uLaunchY;
+                ub_z = uLaunchZ;
+            } else if (vMag > 0.5) {
+                // Outside rail: Body axis smoothly tracks trajectory tangent velocity.
+                // In thrust phase (water/air), strong forward thrust stiffness resists crosswind yawing.
+                double tau = (phase == 2) ? 0.15 : 0.45; // Time constant for fin stabilization
+                double alpha = 1.0 - Math.exp(-dt / tau);
+
+                double targetUx = vx / vMag;
+                double targetUy = vy / vMag;
+                double targetUz = vz / vMag;
+
+                // Subtle weathercocking (15% relative wind pull, 85% inertial forward path)
+                if (vRelMag > 0.5) {
+                    targetUx = 0.85 * (vx / vMag) + 0.15 * (vRelX / vRelMag);
+                    targetUy = 0.85 * (vy / vMag) + 0.15 * (vRelY / vRelMag);
+                    targetUz = 0.85 * (vz / vMag) + 0.15 * (vRelZ / vRelMag);
+                    double normT = Math.sqrt(targetUx * targetUx + targetUy * targetUy + targetUz * targetUz);
+                    targetUx /= normT;
+                    targetUy /= normT;
+                    targetUz /= normT;
+                }
+
+                ub_x += (targetUx - ub_x) * alpha;
+                ub_y += (targetUy - ub_y) * alpha;
+                ub_z += (targetUz - ub_z) * alpha;
+
+                double normB = Math.sqrt(ub_x * ub_x + ub_y * ub_y + ub_z * ub_z);
+                ub_x /= normB;
+                ub_y /= normB;
+                ub_z /= normB;
             }
 
-            // Aerodynamic drag in 3D
+            // Aerodynamic drag opposes relative wind airflow
             double dragMag = 0.5 * RHO_AIR * Cd * A_cross * (vRelMag * vRelMag);
             double F_drag_x = (vRelMag > 1e-4) ? -dragMag * (vRelX / vRelMag) : 0.0;
             double F_drag_y = (vRelMag > 1e-4) ? -dragMag * (vRelY / vRelMag) : 0.0;
@@ -275,10 +299,12 @@ public class RocketPhysics {
                 F_thrust = 0.0;
             }
 
-            double F_thrust_x = F_thrust * ux;
-            double F_thrust_y = F_thrust * uy;
-            double F_thrust_z = F_thrust * uz;
+            // Thrust pushes strictly along the rocket body axis
+            double F_thrust_x = F_thrust * ub_x;
+            double F_thrust_y = F_thrust * ub_y;
+            double F_thrust_z = F_thrust * ub_z;
 
+            // 3D Accelerations
             double ax = (F_thrust_x + F_drag_x) / m_total;
             double ay = (F_thrust_y + F_drag_y) / m_total - G;
             double az = (F_thrust_z + F_drag_z) / m_total;
@@ -400,7 +426,6 @@ public class RocketPhysics {
             }
         }
 
-        // Fallback search
         if (best.simResult == null) {
             double bestErr = 1e9;
             for (double p : pressures) {
