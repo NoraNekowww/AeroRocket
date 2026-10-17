@@ -34,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private View viewEcmwfDot;
     private View chipEcmwf;
 
-    // GeoGebra Style Splitter
+    // Draggable Splitter (Adjustable split viewport)
     private View layoutMapSection;
     private View splitHandle;
     private View splitDragCenter;
@@ -87,6 +87,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvBurnWater;
     private TextView tvBurnAir;
     private TextView tvImpactEnergy;
+
+    // GPS manual movement and coordinates
+    private TextView tvGpsCoords;
+    private Button btnGpsEdit;
+    private Button btnGpsNorth;
+    private Button btnGpsSouth;
+    private Button btnGpsWest;
+    private Button btnGpsEast;
+    private View layoutCustomGps;
+    private EditText etCustomLat;
+    private EditText etCustomLon;
+    private Button btnApplyCoords;
 
     private boolean isEcmwfAuto = true;
     private boolean isUpdatingUi = false;
@@ -165,10 +177,23 @@ public class MainActivity extends AppCompatActivity {
         tvBurnWater = findViewById(R.id.tv_burn_water);
         tvBurnAir = findViewById(R.id.tv_burn_air);
         tvImpactEnergy = findViewById(R.id.tv_impact_energy);
+
+        // Bind GPS Movement Views
+        tvGpsCoords = findViewById(R.id.tv_gps_coords);
+        btnGpsEdit = findViewById(R.id.btn_gps_edit);
+        btnGpsNorth = findViewById(R.id.btn_gps_north);
+        btnGpsSouth = findViewById(R.id.btn_gps_south);
+        btnGpsWest = findViewById(R.id.btn_gps_west);
+        btnGpsEast = findViewById(R.id.btn_gps_east);
+        layoutCustomGps = findViewById(R.id.layout_custom_gps);
+        etCustomLat = findViewById(R.id.et_custom_lat);
+        etCustomLon = findViewById(R.id.et_custom_lon);
+        btnApplyCoords = findViewById(R.id.btn_apply_coords);
+        updateGpsDisplay();
     }
 
     private void setupListeners() {
-        // GeoGebra Style Draggable Split Handle Setup
+        // Draggable Split Handle Setup
         if (splitHandle != null && splitHandle.getVisibility() != View.GONE) {
             View.OnTouchListener dragListener = new View.OnTouchListener() {
                 private float startY;
@@ -365,6 +390,29 @@ public class MainActivity extends AppCompatActivity {
         btnRefreshLocation.setOnClickListener(v -> requestLocationAndFetchEcmwf());
         chipEcmwf.setOnClickListener(v -> requestLocationAndFetchEcmwf());
 
+        // Manual GPS Movement & Nudge Listeners
+        if (btnGpsNorth != null) btnGpsNorth.setOnClickListener(v -> nudgeLocation(0.0005, 0.0));
+        if (btnGpsSouth != null) btnGpsSouth.setOnClickListener(v -> nudgeLocation(-0.0005, 0.0));
+        if (btnGpsWest != null) btnGpsWest.setOnClickListener(v -> nudgeLocation(0.0, -0.0005));
+        if (btnGpsEast != null) btnGpsEast.setOnClickListener(v -> nudgeLocation(0.0, 0.0005));
+
+        if (btnGpsEdit != null) {
+            btnGpsEdit.setOnClickListener(v -> {
+                if (layoutCustomGps != null) {
+                    boolean willShow = (layoutCustomGps.getVisibility() != View.VISIBLE);
+                    layoutCustomGps.setVisibility(willShow ? View.VISIBLE : View.GONE);
+                    if (willShow && etCustomLat != null && etCustomLon != null) {
+                        etCustomLat.setText(String.format(Locale.US, "%.6f", currentLat));
+                        etCustomLon.setText(String.format(Locale.US, "%.6f", currentLon));
+                    }
+                }
+            });
+        }
+
+        if (btnApplyCoords != null) {
+            btnApplyCoords.setOnClickListener(v -> handleApplyCustomCoords());
+        }
+
         btnSolveTarget.setOnClickListener(v -> handleSolveTarget());
         btnApplySolve.setOnClickListener(v -> handleApplySolve());
     }
@@ -407,6 +455,7 @@ public class MainActivity extends AppCompatActivity {
                     if (!isFinishing() && isEcmwfAuto) {
                         currentLat = data.latitude;
                         currentLon = data.longitude;
+                        updateGpsDisplay();
 
                         config.windSpeedMs = data.windSpeedMs;
                         config.meteoWindDirectionDeg = data.windDirectionDeg;
@@ -437,6 +486,85 @@ public class MainActivity extends AppCompatActivity {
                         tvEcmwfStatus.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
                         viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
                         Toast.makeText(MainActivity.this, "气象/定位获取失败: " + errorMsg + "，请手动覆盖", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateGpsDisplay() {
+        if (tvGpsCoords != null) {
+            tvGpsCoords.setText(String.format(Locale.US, "📍 发射场: %.6f°N, %.6f°E", currentLat, currentLon));
+        }
+    }
+
+    private void nudgeLocation(double dLat, double dLon) {
+        currentLat += dLat;
+        currentLon += dLon;
+        updateGpsDisplay();
+        fetchRealSatelliteMap(currentLat, currentLon);
+        if (isEcmwfAuto) {
+            executeEcmwfFetchForCoords(currentLat, currentLon);
+        }
+        Toast.makeText(this, String.format(Locale.US, "已移动至: %.5f°N, %.5f°E", currentLat, currentLon), Toast.LENGTH_SHORT).show();
+    }
+
+    private void handleApplyCustomCoords() {
+        if (etCustomLat == null || etCustomLon == null) return;
+        String latStr = etCustomLat.getText().toString().trim();
+        String lonStr = etCustomLon.getText().toString().trim();
+        try {
+            double lat = Double.parseDouble(latStr);
+            double lon = Double.parseDouble(lonStr);
+            if (lat < -85.0 || lat > 85.0 || lon < -180.0 || lon > 180.0) {
+                Toast.makeText(this, "经纬度数值超出有效范围 (-85~85, -180~180)", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            currentLat = lat;
+            currentLon = lon;
+            updateGpsDisplay();
+            if (layoutCustomGps != null) layoutCustomGps.setVisibility(View.GONE);
+            fetchRealSatelliteMap(currentLat, currentLon);
+            if (isEcmwfAuto) {
+                executeEcmwfFetchForCoords(currentLat, currentLon);
+            }
+            Toast.makeText(this, String.format(Locale.US, "已设定发射场坐标: %.6f°N, %.6f°E", currentLat, currentLon), Toast.LENGTH_SHORT).show();
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "请输入合法的经纬度数值", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void executeEcmwfFetchForCoords(double lat, double lon) {
+        WeatherService.fetchEcmwfWind(lat, lon, "发射场位置", new WeatherService.WeatherCallback() {
+            @Override
+            public void onSuccess(WeatherService.WeatherData data) {
+                runOnUiThread(() -> {
+                    if (!isFinishing() && isEcmwfAuto) {
+                        config.windSpeedMs = data.windSpeedMs;
+                        config.meteoWindDirectionDeg = data.windDirectionDeg;
+
+                        isUpdatingUi = true;
+                        sbWindSpeed.setProgress((int) Math.round(data.windSpeedMs * 10.0));
+                        sbWindAngle.setProgress((int) Math.round(data.windDirectionDeg));
+                        isUpdatingUi = false;
+
+                        recalculateRelativeWind();
+                        updateSimulation();
+
+                        tvEcmwfStatus.setText(String.format(Locale.US, "ECMWF: %.1fm/s %03.0f°", data.windSpeedMs, data.windDirectionDeg));
+                        tvEcmwfStatus.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accent_green));
+                        viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.accent_green));
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String errorMsg) {
+                runOnUiThread(() -> {
+                    if (!isFinishing()) {
+                        tvEcmwfStatus.setText("ECMWF: 获取失败");
+                        tvEcmwfStatus.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
+                        viewEcmwfDot.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.accent_rose));
                     }
                 });
             }

@@ -100,12 +100,11 @@ public class RocketPhysics {
         }
     }
 
-    // Dispersion Probability Cloud (Electron cloud model for landing point uncertainty)
+    // Dispersion Probability Cloud (Gaussian error model for landing point uncertainty)
     public static class DispersionCloud {
         public double semiMajorX;           // Longitudinal 95% error boundary (m)
         public double semiMinorZ;           // Lateral crosswind 95% error boundary (m)
         public double cepRadiusM;           // Circular Error Probable 50% (m)
-        public List<float[]> cloudParticles = new ArrayList<>(); // Relative offsets (dx, dz) for rendering cloud points
     }
 
     // Simulation output metrics
@@ -353,7 +352,7 @@ public class RocketPhysics {
 
     /**
      * Compute Gaussian dispersion error cloud representing environmental gust,
-     * pressure gauge error, and water volume uncertainty (like an electron cloud probability density).
+     * pressure gauge error, and water volume uncertainty.
      */
     private static void calculateDispersionCloud(SimResult res, RocketConfig cfg) {
         // Base standard deviations based on real rocket physics
@@ -367,22 +366,6 @@ public class RocketPhysics {
         res.dispersion.semiMajorX = sigmaX * 2.1;
         res.dispersion.semiMinorZ = sigmaZ * 2.1;
         res.dispersion.cepRadiusM = 0.59 * (res.dispersion.semiMajorX + res.dispersion.semiMinorZ);
-
-        // Generate synthetic Monte-Carlo probability cloud particles (electron cloud dots)
-        Random rnd = new Random((long) (res.rangeM * 1000 + res.lateralDriftM * 10));
-        res.dispersion.cloudParticles.clear();
-        int particleCount = 42;
-        for (int i = 0; i < particleCount; i++) {
-            // Box-Muller normal distribution
-            double u1 = Math.max(1e-6, rnd.nextDouble());
-            double u2 = rnd.nextDouble();
-            double randNormX = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double randNormZ = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
-
-            float dx = (float) (randNormX * sigmaX * 0.95);
-            float dz = (float) (randNormZ * sigmaZ * 0.95);
-            res.dispersion.cloudParticles.add(new float[]{dx, dz});
-        }
     }
 
     public static SolveResult solveForTarget(RocketConfig baseCfg, double targetDistanceM, int mode) {
