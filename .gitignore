@@ -1,0 +1,30 @@
+# Built binaries and outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+build/
+app/build/
+dist/
+
+# Gradle
+.gradle/
+buildOutputCleanup/
+gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration and credentials
+local.properties
+*.jks
+*.keystore
+debug.keystore
+
+# IDE and OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+*.tar.gz

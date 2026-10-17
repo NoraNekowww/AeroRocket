@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Rocket Nose & Body -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M54,22 C58,35 62,50 62,64 L46,64 C46,50 50,35 54,22 Z" />
+    <!-- Fins -->
+    <path
+        android:fillColor="#0284C7"
+        android:pathData="M46,54 L36,66 L46,64 Z M62,54 L72,66 L62,64 Z" />
+    <!-- Water Jet / Plume -->
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M50,65 L58,65 L55,78 L53,78 Z" />
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M52,78 L56,78 L54,86 Z" />
+</vector>
