@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroRocket 3D 水火箭空间弹道系统 | 注册用户下载专区</title>
+    <!-- 2秒后自动跳转到 GitHub Releases 官方下载页面 -->
+    <meta http-equiv="refresh" content="2;url=https://github.com/NoraNekowww/AeroRocket/releases">
+    <title>AeroRocket 3D | 开源发布与跳转专区</title>
     <style>
         * {
             box-sizing: border-box;
@@ -18,202 +20,161 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 40px 20px;
+            justify-content: center;
+            padding: 30px 20px;
         }
         .container {
             width: 100%;
-            max-width: 900px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-        .header .badge-top {
-            display: inline-block;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            padding: 4px 12px;
-            border-radius: 999px;
-            background: rgba(56, 189, 248, 0.12);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            margin-bottom: 12px;
-        }
-        .header h1 {
-            font-size: 2.2rem;
-            color: #f1f5f9;
-            margin-bottom: 10px;
-            letter-spacing: -0.02em;
-        }
-        .header h1 span {
-            color: #38bdf8;
-        }
-        .header p {
-            color: #94a3b8;
-            font-size: 1.05rem;
-            line-height: 1.6;
-            max-width: 740px;
-            margin: 0 auto;
-        }
-
-        /* User status banner */
-        .auth-bar {
-            background: #141f36;
-            border: 1px solid #1e2c4a;
-            border-radius: 12px;
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            font-size: 0.9rem;
-        }
-        .auth-bar .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .auth-bar .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #34d399;
-            box-shadow: 0 0 10px #34d399;
-        }
-        .auth-bar a {
-            color: #38bdf8;
-            text-decoration: none;
-            font-size: 0.85rem;
-        }
-        .auth-bar a:hover {
-            text-decoration: underline;
-        }
-
-        /* Download Primary Card */
-        .download-card {
+            max-width: 660px;
             background: #131c31;
             border: 1px solid #233554;
             border-radius: 16px;
-            padding: 32px;
-            margin-bottom: 32px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            padding: 36px 28px;
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 1.85rem;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+        h1 span {
+            color: #38bdf8;
+        }
+        .sub-desc {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* 明确标明 AI 生成声明 */
+        .ai-banner {
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            text-align: left;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .ai-banner .ai-tag {
+            background: #a855f7;
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+        .ai-banner p {
+            color: #e9d5ff;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .countdown-box {
+            background: #0d1527;
+            border: 1px solid #1a2742;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+        .countdown-box b {
+            color: #38bdf8;
+            font-size: 1.15rem;
+            font-family: ui-monospace, monospace;
+        }
+
+        .actions {
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 12px;
         }
-        .download-main {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .app-meta h2 {
-            font-size: 1.5rem;
-            color: #f8fafc;
-            margin-bottom: 6px;
-        }
-        .app-meta p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-        .btn-download {
+        .btn {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 13px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
             background: #0284c7;
             color: #ffffff;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.05rem;
-            padding: 14px 28px;
-            border-radius: 10px;
-            transition: all 0.2s ease;
             box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
         }
-        .btn-download:hover {
+        .btn-primary:hover {
             background: #0369a1;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
         }
-        .btn-download svg {
-            width: 22px;
-            height: 22px;
+        .btn-secondary {
+            background: #1e293b;
+            color: #38bdf8;
+            border: 1px solid #334155;
+        }
+        .btn-secondary:hover {
+            border-color: #38bdf8;
+            background: #243247;
+        }
+        .btn-mirror {
+            background: transparent;
+            color: #94a3b8;
+            font-size: 0.82rem;
+            padding: 8px;
+        }
+        .btn-mirror:hover {
+            color: #e2e8f0;
+            text-decoration: underline;
         }
 
         /* Specs table */
         .specs-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
             background: #0d1527;
             border: 1px solid #1a2742;
             border-radius: 10px;
-            padding: 16px 20px;
-            font-size: 0.85rem;
+            padding: 12px 16px;
+            font-size: 0.82rem;
+            margin-top: 20px;
+            text-align: left;
         }
         .spec-item {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
         }
         .spec-item .label {
             color: #64748b;
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
         .spec-item .val {
             color: #cbd5e1;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-family: ui-monospace, monospace;
             word-break: break-all;
         }
 
-        /* Feature section */
-        .features-title {
-            font-size: 1.3rem;
-            color: #f1f5f9;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
-        }
-        .feat-card {
-            background: #141e33;
-            border: 1px solid #1e2c4a;
-            border-radius: 12px;
-            padding: 20px;
-        }
-        .feat-icon {
-            font-size: 1.6rem;
-            margin-bottom: 10px;
-        }
-        .feat-card h3 {
-            font-size: 1.05rem;
-            color: #e2e8f0;
-            margin-bottom: 8px;
-        }
-        .feat-card p {
-            color: #94a3b8;
-            font-size: 0.86rem;
-            line-height: 1.5;
-        }
-
-        /* Footer */
         footer {
-            text-align: center;
-            margin-top: auto;
-            padding-top: 30px;
+            margin-top: 20px;
             color: #64748b;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         footer a {
             color: #94a3b8;
@@ -227,99 +188,64 @@
 <body>
 
 <div class="container">
-    <div class="header">
-        <div class="badge-top">NZLAB · 注册用户专属发布</div>
-        <h1>AeroRocket <span>3D 水火箭空间弹道系统</span></h1>
-        <p>卫星遥感发射场底图 · 当前设备GPS定位 ECMWF 实况 · 发射航向 0-360° · 阻力系数与500mL小可乐瓶试验规格</p>
+    <div class="icon">🛰️</div>
+    <h1>AeroRocket <span>3D v1.2.0</span></h1>
+    <p class="sub-desc">本项目完全开源，免登录随便访问。<br>3D 空间卫星地图显示 · 立体高亮发射点与落点 · 目标反推与侧风补偿</p>
+
+    <!-- 明确标明含有 AI 生成声明 -->
+    <div class="ai-banner">
+        <span class="ai-tag">AI 声明</span>
+        <p><strong>公开声明：</strong>本项目（包括两相流动力学物理模型、3D 卫星贴图投影算法、Android 交互界面及侧风反推配平求解器）由开发者指导并借助 <strong>Nous Research Hermes</strong> 与 <strong>AI Agent</strong> 协同生成与调优。</p>
     </div>
 
-    <!-- User authorization status -->
-    <div class="auth-bar">
-        <div class="user-info">
-            <span class="status-dot"></span>
-            <span id="user-display">已通过 nzlab.online 账号系统鉴权（注册用户）</span>
-        </div>
-        <a href="/">返回门户首页 &rarr;</a>
+    <!-- 自动跳转倒计时提示 -->
+    <div class="countdown-box">
+        正在自动跳转至 GitHub Releases 官方下载页面... (<b id="sec">2</b> 秒)
     </div>
 
-    <!-- Download primary container -->
-    <div class="download-card">
-        <div class="download-main">
-            <div class="app-meta">
-                <h2>AeroRocket 3D for Android</h2>
-                <p>v1.1.2 重磅更新：卫星实景底图、当前GPS定位风速、360°发射航向罗盘、阻力系数微调与试验小可乐瓶规格</p>
-            </div>
-            <a href="/water-rocket/AeroRocket-v1.1.2-release.apk" class="btn-download" download>
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-                下载 v1.1.2 正式版 APK
-            </a>
-        </div>
-
-        <div class="specs-grid">
-            <div class="spec-item">
-                <span class="label">软件版本</span>
-                <span class="val">v1.1.2 (Release)</span>
-            </div>
-            <div class="spec-item">
-                <span class="label">软件包大小</span>
-                <span class="val">3.84 MB</span>
-            </div>
-            <div class="spec-item">
-                <span class="label">系统要求</span>
-                <span class="val">Android 8.0+ (API 26+)</span>
-            </div>
-            <div class="spec-item" style="grid-column: 1 / -1;">
-                <span class="label">SHA-256 完整性指纹</span>
-                <span class="val">8bd33492853000cfb0bab4c3eded29e3ac79a0c85049f673cb4b9f5f94342560</span>
-            </div>
-        </div>
+    <div class="actions">
+        <a id="target-link" href="https://github.com/NoraNekowww/AeroRocket/releases" class="btn btn-primary">
+            立即前往 GitHub Releases 下载 v1.2.0 APK
+        </a>
+        <a href="https://github.com/NoraNekowww/AeroRocket" class="btn btn-secondary">
+            访问 GitHub 开源项目仓库
+        </a>
+        <a href="/water-rocket/AeroRocket-v1.2.0-release.apk" class="btn-mirror" download>
+            本站免登录备用镜像直接下载 (v1.2.0)
+        </a>
     </div>
 
-    <!-- Features Breakdown -->
-    <h2 class="features-title">⚡ v1.1.2 核心更新与物理引擎特性</h2>
-    <div class="features-grid">
-        <div class="feat-card">
-            <div class="feat-icon">🛰️</div>
-            <h3>发射场地卫星遥感底图</h3>
-            <p>支持一键开启卫星实景地表，水火箭发射点、空间弹道、顶点落点与侧漂轨迹直接投影在真实的操场、草坪与跑道遥感地貌上。</p>
+    <div class="specs-grid">
+        <div class="spec-item">
+            <span class="label">软件版本</span>
+            <span class="val">v1.2.0 (Release)</span>
         </div>
-
-        <div class="feat-card">
-            <div class="feat-icon">📍</div>
-            <h3>当前设备定位 ECMWF 风场</h3>
-            <p>基于系统 GPS 与基站网络获取当前真实经纬度，秒级同步当地 ECMWF IFS 0.25° 实况地面风速与真北风向；获取失败直观告警，不伪造数据。</p>
+        <div class="spec-item">
+            <span class="label">安装包大小</span>
+            <span class="val">3.84 MB</span>
         </div>
-
-        <div class="feat-card">
-            <div class="feat-icon">🧭</div>
-            <h3>360° 发射航向罗盘与侧风配平</h3>
-            <p>支持 0°~360° 任意设定发射指向，自动将气象风向与发射航向进行矢量分解，精准呈现侧风漂移量，并在反推时自动给出偏航瞄准修正角。</p>
-        </div>
-
-        <div class="feat-card">
-            <div class="feat-icon">🥤</div>
-            <h3>阻力系数 (Cd) 与 500mL 试验规格</h3>
-            <p>新增 500mL 细长型小可乐瓶试验规格（容积 0.5L，瓶径 66mm，干重 85g，迎风面积大幅减少）；开放 0.15~0.70 阻力系数自由连续微调。</p>
+        <div class="spec-item" style="grid-column: 1 / -1;">
+            <span class="label">SHA-256 指纹</span>
+            <span class="val">44312199f03eb58a28470ea196a8d32cfe3e6b09f37d890b05c62b611696d3d7</span>
         </div>
     </div>
 
     <footer>
-        &copy; 2026 NZ Lab. 本页面由 nzlab.online 统一身份认证保护 · <a href="/">返回主站导航</a>
+        &copy; 2026 NoraNekowww · MIT License · <a href="/">返回 nzLab 门户首页</a>
     </footer>
 </div>
 
 <script>
-    fetch('/schedule/api/auth/session', { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.user) {
-                const name = data.user.display_name || data.user.username;
-                document.getElementById('user-display').textContent = `🟢 已认证授权：${name} (${data.user.is_admin ? '管理员' : '注册用户'})，享有直接下载权限`;
-            }
-        })
-        .catch(() => {});
+    let remaining = 2;
+    const secEl = document.getElementById('sec');
+    const timer = setInterval(() => {
+        remaining--;
+        if (secEl) secEl.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            window.location.href = "https://github.com/NoraNekowww/AeroRocket/releases";
+        }
+    }, 1000);
 </script>
 </body>
 </html>

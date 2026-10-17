@@ -5,11 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
-import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -27,20 +25,20 @@ public class TrajectoryView extends View {
     public static final int MODE_3D = 1;
 
     private int currentMode = MODE_3D;
-    private boolean showSatelliteMap = true; // Default satellite imagery overlay enabled
+    private boolean showSatelliteMap = true; // Default satellite imagery enabled
 
     private RocketPhysics.SimResult currentResult;
     private double targetDistanceM = -1.0;
     private double currentLaunchAngleDeg = 45.0;
-    private double currentLaunchHeadingDeg = 90.0; // True North heading
+    private double currentLaunchHeadingDeg = 90.0;
     private double currentLaunchYawDeg = 0.0;
     private double currentWindSpeedMs = 0.0;
     private double currentWindAngleDeg = 0.0;
 
     // 3D Camera Angles
-    private float camAzimuthDeg = 40.0f;   // Horizontal rotation around center
-    private float camElevationDeg = 28.0f; // Tilt angle from above (elevation)
-    private float camScale = 1.0f;         // Zoom factor
+    private float camAzimuthDeg = 40.0f;
+    private float camElevationDeg = 28.0f;
+    private float camScale = 1.0f;
 
     // Touch interaction
     private float lastTouchX = 0f;
@@ -56,8 +54,11 @@ public class TrajectoryView extends View {
     private final RectF btnSideViewBounds = new RectF();
     private final RectF btnResetBounds = new RectF();
 
-    // Satellite synthetic procedural imagery cache
+    // Satellite imagery texture & mesh
     private Bitmap satelliteBitmap;
+    private static final int MESH_WIDTH = 6;
+    private static final int MESH_HEIGHT = 6;
+    private final float[] meshVerts = new float[(MESH_WIDTH + 1) * (MESH_HEIGHT + 1) * 2];
 
     // Paints
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -110,22 +111,22 @@ public class TrajectoryView extends View {
         textPaint.setTextSize(10f * density);
 
         waterPathPaint.setColor(Color.parseColor("#38BDF8")); // Cyan
-        waterPathPaint.setStrokeWidth(3.0f * density);
+        waterPathPaint.setStrokeWidth(3.2f * density);
         waterPathPaint.setStyle(Paint.Style.STROKE);
         waterPathPaint.setStrokeCap(Paint.Cap.ROUND);
 
         airPathPaint.setColor(Color.parseColor("#34D399")); // Emerald Green
-        airPathPaint.setStrokeWidth(2.6f * density);
+        airPathPaint.setStrokeWidth(2.8f * density);
         airPathPaint.setStyle(Paint.Style.STROKE);
         airPathPaint.setStrokeCap(Paint.Cap.ROUND);
 
         coastPathPaint.setColor(Color.parseColor("#F8FAFC")); // White
-        coastPathPaint.setStrokeWidth(2.2f * density);
+        coastPathPaint.setStrokeWidth(2.4f * density);
         coastPathPaint.setStyle(Paint.Style.STROKE);
         coastPathPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        shadowPathPaint.setColor(Color.parseColor("#334155"));
-        shadowPathPaint.setStrokeWidth(1.5f * density);
+        shadowPathPaint.setColor(Color.parseColor("#475569"));
+        shadowPathPaint.setStrokeWidth(1.6f * density);
         shadowPathPaint.setStyle(Paint.Style.STROKE);
         shadowPathPaint.setPathEffect(new DashPathEffect(new float[]{4f * density, 3f * density}, 0));
 
@@ -134,8 +135,8 @@ public class TrajectoryView extends View {
         targetPaint.setStyle(Paint.Style.STROKE);
         targetPaint.setPathEffect(new DashPathEffect(new float[]{5f * density, 4f * density}, 0));
 
-        dropLinePaint.setColor(Color.parseColor("#475569"));
-        dropLinePaint.setStrokeWidth(1f * density);
+        dropLinePaint.setColor(Color.parseColor("#64748B"));
+        dropLinePaint.setStrokeWidth(1.2f * density);
         dropLinePaint.setStyle(Paint.Style.STROKE);
         dropLinePaint.setPathEffect(new DashPathEffect(new float[]{3f * density, 3f * density}, 0));
 
@@ -146,7 +147,7 @@ public class TrajectoryView extends View {
         satMeshPaint.setFilterBitmap(true);
         satMeshPaint.setDither(true);
 
-        createSatelliteGroundTexture();
+        satelliteBitmap = SatelliteTileService.getLaunchFieldSatelliteBitmap(512, 512);
 
         scaleDetector = new ScaleGestureDetector(context, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override
@@ -173,40 +174,11 @@ public class TrajectoryView extends View {
         });
     }
 
-    /**
-     * Generate high-resolution launch field satellite surface texture (sports ground / grass fairway / runway)
-     */
-    private void createSatelliteGroundTexture() {
-        int size = 512;
-        satelliteBitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(satelliteBitmap);
-
-        // Dark realistic satellite turf background
-        Paint pGrass = new Paint();
-        pGrass.setShader(new LinearGradient(0, 0, size, size,
-                Color.parseColor("#12231A"), Color.parseColor("#183024"), Shader.TileMode.CLAMP));
-        c.drawRect(0, 0, size, size, pGrass);
-
-        // Runway / Athletics track oval lines
-        Paint pTrack = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pTrack.setColor(Color.parseColor("#1C382A"));
-        pTrack.setStyle(Paint.Style.FILL);
-        c.drawRoundRect(new RectF(40, 100, size - 40, size - 100), 120, 120, pTrack);
-
-        Paint pRunway = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pRunway.setColor(Color.parseColor("#264535"));
-        pRunway.setStrokeWidth(16);
-        pRunway.setStyle(Paint.Style.STROKE);
-        c.drawLine(40, size / 2f, size - 40, size / 2f, pRunway);
-
-        // Center line
-        Paint pCenter = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pCenter.setColor(Color.parseColor("#3A614B"));
-        pCenter.setStrokeWidth(2);
-        pCenter.setStyle(Paint.Style.STROKE);
-        c.drawCircle(size / 2f, size / 2f, 70, pCenter);
-        c.drawLine(0, size / 2f, size, size / 2f, pCenter);
-        c.drawLine(size / 2f, 0, size / 2f, size, pCenter);
+    public void setSatelliteBitmap(Bitmap bmp) {
+        if (bmp != null) {
+            this.satelliteBitmap = bmp;
+            invalidate();
+        }
     }
 
     public void reset3DCamera() {
@@ -251,32 +223,27 @@ public class TrajectoryView extends View {
         float y = event.getY();
 
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            // Mode toggle
             if (btnModeBounds.contains(x, y)) {
                 setViewMode(currentMode == MODE_3D ? MODE_2D : MODE_3D);
                 return true;
             }
-            // Satellite toggle
             if (btnSatBounds.contains(x, y)) {
                 toggleSatelliteMap();
                 return true;
             }
             if (currentMode == MODE_3D) {
-                // Top view (俯视看侧漂)
                 if (btnTopViewBounds.contains(x, y)) {
                     camElevationDeg = 88.0f;
                     camAzimuthDeg = 0.0f;
                     invalidate();
                     return true;
                 }
-                // Side view (侧视看高度)
                 if (btnSideViewBounds.contains(x, y)) {
                     camElevationDeg = 8.0f;
                     camAzimuthDeg = 90.0f;
                     invalidate();
                     return true;
                 }
-                // Reset view
                 if (btnResetBounds.contains(x, y)) {
                     reset3DCamera();
                     return true;
@@ -285,7 +252,6 @@ public class TrajectoryView extends View {
         }
 
         if (currentMode == MODE_3D) {
-            // Disallow parent scrollview interception
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN || event.getActionMasked() == MotionEvent.ACTION_MOVE) {
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
             } else if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
@@ -312,12 +278,7 @@ public class TrajectoryView extends View {
                         float dx = x - lastTouchX;
                         float dy = y - lastTouchY;
 
-                        // Horizontal rotation
                         camAzimuthDeg = (camAzimuthDeg - dx * 0.42f + 360f) % 360f;
-
-                        // FLIPPED VERTICAL SCROLL: Inverted as requested by user!
-                        // Now dragging finger downwards increases elevation (looks down from above),
-                        // dragging upwards decreases elevation (flattens perspective).
                         camElevationDeg = Math.max(5.0f, Math.min(88.0f, camElevationDeg + dy * 0.35f));
 
                         lastTouchX = x;
@@ -352,13 +313,8 @@ public class TrajectoryView extends View {
             draw2DScene(canvas, w, h, density);
         }
 
-        // Draw Interactive Camera, Satellite & Mode Controls Header
         drawTopControls(canvas, density, w);
     }
-
-    // =========================================================================
-    // 3D SPATIAL PROJECTION RENDERING ENGINE
-    // =========================================================================
 
     private static class Point2D {
         float px, py;
@@ -421,12 +377,26 @@ public class TrajectoryView extends View {
         double gridLimitX = Math.ceil(boxSize / gridStep) * gridStep;
         double gridLimitZ = Math.ceil(boxSize * 0.5 / gridStep) * gridStep;
 
-        // 1. Draw Satellite Imagery Ground Surface (Y = 0)
+        // =====================================================================
+        // 1. SATELLITE MAP 3D MESH PROJECTION (drawBitmapMesh hardware accelerated)
+        // =====================================================================
         if (showSatelliteMap && satelliteBitmap != null) {
-            drawSatelliteGround(canvas, gridLimitX, gridLimitZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl, density);
+            int index = 0;
+            for (int r = 0; r <= MESH_HEIGHT; r++) {
+                double fracZ = (double) r / MESH_HEIGHT;
+                double zWorld = -gridLimitZ + fracZ * (2.0 * gridLimitZ);
+                for (int c = 0; c <= MESH_WIDTH; c++) {
+                    double fracX = (double) c / MESH_WIDTH;
+                    double xWorld = 0.0 + fracX * gridLimitX;
+                    Point2D pt = project3D(xWorld, 0.0, zWorld, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+                    meshVerts[index++] = pt.px;
+                    meshVerts[index++] = pt.py;
+                }
+            }
+            canvas.drawBitmapMesh(satelliteBitmap, MESH_WIDTH, MESH_HEIGHT, meshVerts, 0, null, 0, satMeshPaint);
         }
 
-        // 2. Draw 3D Ground Plane Grid
+        // 2. Ground Grid Lines
         for (double z = -gridLimitZ; z <= gridLimitZ; z += gridStep) {
             Point2D pStart = project3D(0, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             Point2D pEnd = project3D(gridLimitX, 0, z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
@@ -466,12 +436,12 @@ public class TrajectoryView extends View {
         canvas.drawLine(origin.px, origin.py, zEnd.px, zEnd.py, pAxisZ);
         canvas.drawText("Z 侧偏", zEnd.px + 4f * density, zEnd.py + 4f * density, pAxisZ);
 
-        // Launch Pad Origin
-        Paint originDot = new Paint(Paint.ANTI_ALIAS_FLAG);
-        originDot.setColor(Color.parseColor("#38BDF8"));
-        canvas.drawCircle(origin.px, origin.py, 4.5f * density, originDot);
+        // =====================================================================
+        // 4. HIGHLIGHT: LAUNCH SITE (发射点高亮标示)
+        // =====================================================================
+        drawLaunchSiteBadge(canvas, origin, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
 
-        // 4. Target Marker on Ground
+        // 5. Target Ring on Satellite Ground (if set)
         if (targetDistanceM > 0) {
             Point2D tCenter = project3D(targetDistanceM, 0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             canvas.drawCircle(tCenter.px, tCenter.py, 6f * density, targetPaint);
@@ -491,7 +461,7 @@ public class TrajectoryView extends View {
 
         List<RocketPhysics.TrajectoryPoint> traj = currentResult.trajectory;
 
-        // 5. Ground Shadow Trace (X, 0, Z)
+        // 6. Ground Shadow Trace on Satellite Surface (X, 0, Z)
         shadowPath.reset();
         for (int i = 0; i < traj.size(); i++) {
             RocketPhysics.TrajectoryPoint pt = traj.get(i);
@@ -501,7 +471,7 @@ public class TrajectoryView extends View {
         }
         canvas.drawPath(shadowPath, shadowPathPaint);
 
-        // 6. 3D Flight Trajectory
+        // 7. 3D Flight Trajectory
         waterPath.reset();
         airPath.reset();
         coastPath.reset();
@@ -541,7 +511,7 @@ public class TrajectoryView extends View {
         canvas.drawPath(airPath, airPathPaint);
         canvas.drawPath(coastPath, coastPathPaint);
 
-        // 7. Apex Highlight with ground drop line
+        // 8. Apex Highlight with ground drop line
         if (apexPt2D != null && apexPt3D != null) {
             Point2D apexGround = project3D(apexPt3D.x, 0, apexPt3D.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
             canvas.drawLine(apexPt2D.px, apexPt2D.py, apexGround.px, apexGround.py, dropLinePaint);
@@ -558,33 +528,14 @@ public class TrajectoryView extends View {
                     apexPt2D.px + 5f * density, apexPt2D.py - 4f * density, pTxt);
         }
 
-        // 8. Ground Impact & Lateral Drift
+        // =====================================================================
+        // 9. HIGHLIGHT: IMPACT SITE (落地点高亮标示)
+        // =====================================================================
         RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
         Point2D impactPt = project3D(lastPt.x, 0, lastPt.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+        drawImpactSiteBadge(canvas, impactPt, lastPt, origin, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
 
-        Paint landDot = new Paint(Paint.ANTI_ALIAS_FLAG);
-        landDot.setColor(Color.parseColor("#F43F5E"));
-        canvas.drawCircle(impactPt.px, impactPt.py, 5f * density, landDot);
-
-        Point2D axisRef = project3D(lastPt.x, 0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
-        Paint pDriftLine = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pDriftLine.setColor(Color.parseColor("#FB7185"));
-        pDriftLine.setStrokeWidth(1.2f * density);
-        pDriftLine.setStyle(Paint.Style.STROKE);
-        pDriftLine.setPathEffect(new DashPathEffect(new float[]{3f * density, 3f * density}, 0));
-        canvas.drawLine(axisRef.px, axisRef.py, impactPt.px, impactPt.py, pDriftLine);
-
-        Paint landText = new Paint(Paint.ANTI_ALIAS_FLAG);
-        landText.setColor(Color.parseColor("#FDA4AF"));
-        landText.setTextSize(9.5f * density);
-        landText.setFakeBoldText(true);
-
-        String driftDir = (currentResult.lateralDriftM >= 0) ? "偏右" : "偏左";
-        String landLabel = String.format(Locale.US, "落点: %.1fm (%s %.1fm)",
-                currentResult.rangeM, driftDir, Math.abs(currentResult.lateralDriftM));
-        canvas.drawText(landLabel, impactPt.px + 5f * density, impactPt.py + 4f * density, landText);
-
-        // 9. Bottom Hint
+        // 10. Bottom Hint
         Paint tipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         tipPaint.setColor(Color.parseColor("#475569"));
         tipPaint.setTextSize(8.5f * density);
@@ -592,35 +543,95 @@ public class TrajectoryView extends View {
         canvas.drawText(tip, (w - tipPaint.measureText(tip)) / 2f, h - 6f * density, tipPaint);
     }
 
-    private void drawSatelliteGround(Canvas canvas, double maxX, double maxZ,
-                                    double pivotX, double pivotY, double pivotZ,
-                                    float cx, float cy, float scaleWorld,
-                                    double sinAz, double cosAz, double sinEl, double cosEl, float density) {
-        // Project 4 ground boundary corners in 3D
-        Point2D p00 = project3D(0, 0, -maxZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
-        Point2D p10 = project3D(maxX, 0, -maxZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
-        Point2D p11 = project3D(maxX, 0, maxZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
-        Point2D p01 = project3D(0, 0, maxZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+    private void drawLaunchSiteBadge(Canvas canvas, Point2D origin, float density,
+                                     double pivotX, double pivotY, double pivotZ,
+                                     float cx, float cy, float scaleWorld,
+                                     double sinAz, double cosAz, double sinEl, double cosEl) {
+        // Multi-ring radar pulse at launch pad
+        Paint pRing = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pRing.setColor(Color.parseColor("#38BDF8"));
+        pRing.setStyle(Paint.Style.STROKE);
+        pRing.setStrokeWidth(1.2f * density);
+        canvas.drawCircle(origin.px, origin.py, 6f * density, pRing);
+        canvas.drawCircle(origin.px, origin.py, 12f * density, pRing);
 
-        Path quadPath = new Path();
-        quadPath.moveTo(p00.px, p00.py);
-        quadPath.lineTo(p10.px, p10.py);
-        quadPath.lineTo(p11.px, p11.py);
-        quadPath.lineTo(p01.px, p01.py);
-        quadPath.close();
+        Paint pPad = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pPad.setColor(Color.parseColor("#0284C7"));
+        pPad.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(origin.px, origin.py, 4f * density, pPad);
 
-        // Satellite ground turf base
-        Paint pSatBase = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pSatBase.setColor(Color.parseColor("#132219"));
-        pSatBase.setStyle(Paint.Style.FILL);
-        canvas.drawPath(quadPath, pSatBase);
+        // Vertical 3D Launch Pole
+        Point2D poleTop = project3D(0, 10.0, 0, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+        Paint pPole = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pPole.setColor(Color.parseColor("#38BDF8"));
+        pPole.setStrokeWidth(1.5f * density);
+        canvas.drawLine(origin.px, origin.py, poleTop.px, poleTop.py, pPole);
 
-        // Satellite turf border line
-        Paint pSatBorder = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pSatBorder.setColor(Color.parseColor("#264230"));
-        pSatBorder.setStyle(Paint.Style.STROKE);
-        pSatBorder.setStrokeWidth(1.2f * density);
-        canvas.drawPath(quadPath, pSatBorder);
+        // Launch Tag Bubble
+        String text = "发射点 (0,0)";
+        Paint pTagText = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pTagText.setColor(Color.parseColor("#FFFFFF"));
+        pTagText.setTextSize(9f * density);
+        pTagText.setFakeBoldText(true);
+        float tw = pTagText.measureText(text);
+
+        RectF tagRect = new RectF(poleTop.px - tw / 2f - 4f * density, poleTop.py - 14f * density,
+                poleTop.px + tw / 2f + 4f * density, poleTop.py);
+        Paint pTagBg = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pTagBg.setColor(Color.parseColor("#0284C7"));
+        canvas.drawRoundRect(tagRect, 3f * density, 3f * density, pTagBg);
+        canvas.drawText(text, poleTop.px - tw / 2f, poleTop.py - 3.5f * density, pTagText);
+    }
+
+    private void drawImpactSiteBadge(Canvas canvas, Point2D impactPt, RocketPhysics.TrajectoryPoint lastPt,
+                                     Point2D origin, float density,
+                                     double pivotX, double pivotY, double pivotZ,
+                                     float cx, float cy, float scaleWorld,
+                                     double sinAz, double cosAz, double sinEl, double cosEl) {
+        // Impact ground blast concentric rings
+        Paint pBlast = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pBlast.setColor(Color.parseColor("#F43F5E"));
+        pBlast.setStyle(Paint.Style.STROKE);
+        pBlast.setStrokeWidth(1.5f * density);
+        canvas.drawCircle(impactPt.px, impactPt.py, 7f * density, pBlast);
+        canvas.drawCircle(impactPt.px, impactPt.py, 14f * density, pBlast);
+
+        Paint pCenter = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pCenter.setColor(Color.parseColor("#E11D48"));
+        pCenter.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(impactPt.px, impactPt.py, 4.5f * density, pCenter);
+
+        // Ground range connection line from launch pad to impact point
+        Paint pDirectLine = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pDirectLine.setColor(Color.parseColor("#F43F5E"));
+        pDirectLine.setStrokeWidth(1.4f * density);
+        pDirectLine.setStyle(Paint.Style.STROKE);
+        pDirectLine.setPathEffect(new DashPathEffect(new float[]{4f * density, 3f * density}, 0));
+        canvas.drawLine(origin.px, origin.py, impactPt.px, impactPt.py, pDirectLine);
+
+        // Vertical 3D Impact Flag Pole
+        Point2D flagTop = project3D(lastPt.x, 10.0, lastPt.z, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+        Paint pFlag = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pFlag.setColor(Color.parseColor("#F43F5E"));
+        pFlag.setStrokeWidth(1.5f * density);
+        canvas.drawLine(impactPt.px, impactPt.py, flagTop.px, flagTop.py, pFlag);
+
+        // Impact Tag Bubble
+        String driftDir = (currentResult.lateralDriftM >= 0) ? "偏右" : "偏左";
+        String text = String.format(Locale.US, "落点: %.1fm (%s%.1fm)",
+                currentResult.rangeM, driftDir, Math.abs(currentResult.lateralDriftM));
+        Paint pTagText = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pTagText.setColor(Color.parseColor("#FFFFFF"));
+        pTagText.setTextSize(9f * density);
+        pTagText.setFakeBoldText(true);
+        float tw = pTagText.measureText(text);
+
+        RectF tagRect = new RectF(flagTop.px - tw / 2f - 4f * density, flagTop.py - 14f * density,
+                flagTop.px + tw / 2f + 4f * density, flagTop.py);
+        Paint pTagBg = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pTagBg.setColor(Color.parseColor("#E11D48"));
+        canvas.drawRoundRect(tagRect, 3f * density, 3f * density, pTagBg);
+        canvas.drawText(text, flagTop.px - tw / 2f, flagTop.py - 3.5f * density, pTagText);
     }
 
     // =========================================================================
@@ -733,6 +744,17 @@ public class TrajectoryView extends View {
             canvas.drawText(apexLabel, apexPx - apexText.measureText(apexLabel) / 2f, apexPy - 8f * density, apexText);
         }
 
+        // 2D Launch Point marker
+        Paint launchDot = new Paint(Paint.ANTI_ALIAS_FLAG);
+        launchDot.setColor(Color.parseColor("#0284C7"));
+        canvas.drawCircle(plotArea2D.left, plotArea2D.bottom, 5f * density, launchDot);
+        Paint launchTxt = new Paint(Paint.ANTI_ALIAS_FLAG);
+        launchTxt.setColor(Color.parseColor("#38BDF8"));
+        launchTxt.setTextSize(9.5f * density);
+        launchTxt.setFakeBoldText(true);
+        canvas.drawText("发射点", plotArea2D.left - 4f * density, plotArea2D.bottom - 10f * density, launchTxt);
+
+        // 2D Impact Point marker
         RocketPhysics.TrajectoryPoint lastPt = traj.get(traj.size() - 1);
         float landPx = (float) (plotArea2D.left + (lastPt.x / maxX) * plotArea2D.width());
         float landPy = plotArea2D.bottom;
@@ -758,7 +780,7 @@ public class TrajectoryView extends View {
         float y0 = 6f * density;
 
         // 1. Mode Switcher (2D / 3D)
-        float modeW = 60f * density;
+        float modeW = 58f * density;
         btnModeBounds.set(8f * density, y0, 8f * density + modeW, y0 + btnHeight);
         drawChip(canvas, btnModeBounds, density,
                 currentMode == MODE_3D ? "3D 空间" : "2D 剖面",
@@ -766,7 +788,7 @@ public class TrajectoryView extends View {
                 true);
 
         // 2. Satellite Imagery Switcher
-        float satW = 54f * density;
+        float satW = 56f * density;
         float satX = btnModeBounds.right + 5f * density;
         btnSatBounds.set(satX, y0, satX + satW, y0 + btnHeight);
         drawChip(canvas, btnSatBounds, density,
@@ -775,7 +797,7 @@ public class TrajectoryView extends View {
                 showSatelliteMap);
 
         if (currentMode == MODE_3D) {
-            // 3. Preset: Top-down view (俯视看侧偏)
+            // 3. Preset: Top-down view (俯视看发射点与落点及侧漂)
             float topW = 42f * density;
             float topX = btnSatBounds.right + 5f * density;
             btnTopViewBounds.set(topX, y0, topX + topW, y0 + btnHeight);
