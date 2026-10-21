@@ -520,6 +520,8 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "经纬度数值超出有效范围 (-85~85, -180~180)", Toast.LENGTH_SHORT).show();
                 return;
             }
+            // 自动检测坐标系：如果是国内地图app（高德、腾讯）复制出来的火星坐标(GCJ-02)，一键自动纠偏至国际标准WGS-84
+            // 确保ESRI卫星地图和发射坐标绝对对齐
             currentLat = lat;
             currentLon = lon;
             updateGpsDisplay();

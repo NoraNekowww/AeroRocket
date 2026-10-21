@@ -72,7 +72,14 @@ public class WeatherService {
 
         if (bestLocation != null) {
             // Check if location is reasonably fresh (within 30 mins)
-            fetchEcmwfWind(bestLocation.getLatitude(), bestLocation.getLongitude(), "当前设备定位", callback);
+            double lat = bestLocation.getLatitude();
+            double lon = bestLocation.getLongitude();
+            if (LocationManager.NETWORK_PROVIDER.equals(bestLocation.getProvider())) {
+                CoordinateTransform.LatLon wgs = CoordinateTransform.gcj02ToWgs84(lat, lon);
+                lat = wgs.lat;
+                lon = wgs.lon;
+            }
+            fetchEcmwfWind(lat, lon, "当前设备定位", callback);
             return;
         }
 
@@ -87,7 +94,14 @@ public class WeatherService {
                         try {
                             lm.removeUpdates(this);
                         } catch (SecurityException ignored) {}
-                        fetchEcmwfWind(loc.getLatitude(), loc.getLongitude(), "当前实时定位", callback);
+                        double lat = loc.getLatitude();
+                        double lon = loc.getLongitude();
+                        if (LocationManager.NETWORK_PROVIDER.equals(loc.getProvider())) {
+                            CoordinateTransform.LatLon wgs = CoordinateTransform.gcj02ToWgs84(lat, lon);
+                            lat = wgs.lat;
+                            lon = wgs.lon;
+                        }
+                        fetchEcmwfWind(lat, lon, "当前实时定位", callback);
                     }
                 }
                 @Override public void onStatusChanged(String provider, int status, Bundle extras) {}

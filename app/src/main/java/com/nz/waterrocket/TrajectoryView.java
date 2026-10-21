@@ -511,12 +511,12 @@ public class TrajectoryView extends View {
 
             // Geographical launch heading rotation:
             // 真实物理地理航向: Heading 0°(正北), 90°(正东), 180°(正南), 270°(正西)
-            // 顺时针旋转航向角:
-            // deltaNorth = cos(Heading)*xWorld - sin(Heading)*zWorld
-            // deltaEast  = sin(Heading)*xWorld + cos(Heading)*zWorld
-            // 反变换将卫星地图点映射到火箭世界坐标:
-            // xWorld =  deltaNorth * cos(Heading) + deltaEast * sin(Heading)
-            // zWorld = -deltaNorth * sin(Heading) + deltaEast * cos(Heading)
+            // 空间矢量定义:
+            // 发射轴 +X 是火箭瞄准方向: Heading角对应的地理单位矢量为 (East = sinH, North = cosH)
+            // 航向右侧 +Z 是侧偏方向: 顺时针旋转90°对应的地理单位矢量为 (East = cosH, North = -sinH)
+            // 因此地面任意点位移 (deltaEast, deltaNorth) 在火箭世界坐标系的投影为:
+            // xWorld = deltaEast * sinH + deltaNorth * cosH
+            // zWorld = deltaEast * cosH - deltaNorth * sinH
             double headingRad = Math.toRadians(currentLaunchHeadingDeg);
             double sinH = Math.sin(headingRad);
             double cosH = Math.cos(headingRad);
@@ -525,16 +525,16 @@ public class TrajectoryView extends View {
             for (int r = 0; r <= MESH_HEIGHT; r++) {
                 float v = (float) r / MESH_HEIGHT;
                 float py = v * bmpH;
-                float deltaNorth = -(py - centerPxY) / ppm; // 像素Y向下，北方向上为正
+                float deltaNorth = -(py - centerPxY) / ppm; // 像素Y向下，北方向上为正 (m)
 
                 for (int c = 0; c <= MESH_WIDTH; c++) {
                     float u = (float) c / MESH_WIDTH;
                     float px = u * bmpW;
-                    float deltaEast = (px - centerPxX) / ppm; // 像素X向右，东方为正
+                    float deltaEast = (px - centerPxX) / ppm; // 像素X向右，东方为正 (m)
 
-                    // Convert geographic offset (East, North) to rocket world coordinates (X downrange, Z crossrange)
-                    double xWorld = deltaNorth * cosH + deltaEast * sinH;
-                    double zWorld = -deltaNorth * sinH + deltaEast * cosH;
+                    // 正投影变换 (地学坐标 -> 火箭弹道局部世界坐标)
+                    double xWorld = deltaEast * sinH + deltaNorth * cosH;
+                    double zWorld = deltaEast * cosH - deltaNorth * sinH;
 
                     Point2D pt = project3D(xWorld, 0.0, zWorld, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
                     meshVerts[index++] = pt.px;
@@ -585,7 +585,10 @@ public class TrajectoryView extends View {
         canvas.drawText("Z 侧偏", zEnd.px + 4f * density, zEnd.py + 4f * density, pAxisZ);
 
         // Ground True North Compass Vector (真实地理真北指示器: 北向在世界坐标中的投影)
-        // deltaNorth = L, deltaEast = 0 -> xWorld = L * cos(Heading), zWorld = -L * sin(Heading)
+        // 地理北向单位矢量为 (deltaEast = 0, deltaNorth = 1)
+        // 投影到火箭世界坐标系公式:
+        // xWorld = deltaEast * sinH + deltaNorth * cosH = cos(Heading)
+        // zWorld = deltaEast * cosH - deltaNorth * sinH = -sin(Heading)
         double compassLen = Math.max(15.0, boxSize * 0.25);
         double hRad = Math.toRadians(currentLaunchHeadingDeg);
         double northX = compassLen * Math.cos(hRad);
