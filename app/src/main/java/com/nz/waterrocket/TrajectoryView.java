@@ -477,8 +477,9 @@ public class TrajectoryView extends View {
 
         double boxSize = Math.max(maxDist, Math.max(maxAlt, maxDrift));
 
-        double pivotX = (currentResult != null && currentResult.rangeM > 10.0) ? (currentResult.rangeM * 0.45) : (boxSize * 0.4);
-        double pivotY = (currentResult != null && currentResult.apogeeM > 5.0) ? (currentResult.apogeeM * 0.35) : (boxSize * 0.2);
+        // 严格以原点到最大范围中心做平滑定位，射程增大时 boxSize 增大，scaleWorld 减小，地图与弹道严格等比例缩小
+        double pivotX = Math.max(20.0, maxDist * 0.45);
+        double pivotY = Math.max(10.0, maxAlt * 0.35);
         double pivotZ = (currentResult != null) ? (currentResult.lateralDriftM * 0.5) : 0.0;
 
         float cx = w * 0.50f;
@@ -509,7 +510,13 @@ public class TrajectoryView extends View {
             float ppm = hasRealSat ? satelliteMapData.pixelsPerMeter : (bmpW / (float) (gridLimitX * 2.0));
 
             // Geographical launch heading rotation:
-            // Heading 0 = North, 90 = East, 180 = South, 270 = West
+            // 真实物理地理航向: Heading 0°(正北), 90°(正东), 180°(正南), 270°(正西)
+            // 顺时针旋转航向角:
+            // deltaNorth = cos(Heading)*xWorld - sin(Heading)*zWorld
+            // deltaEast  = sin(Heading)*xWorld + cos(Heading)*zWorld
+            // 反变换将卫星地图点映射到火箭世界坐标:
+            // xWorld =  deltaNorth * cos(Heading) + deltaEast * sin(Heading)
+            // zWorld = -deltaNorth * sin(Heading) + deltaEast * cos(Heading)
             double headingRad = Math.toRadians(currentLaunchHeadingDeg);
             double sinH = Math.sin(headingRad);
             double cosH = Math.cos(headingRad);
@@ -518,12 +525,12 @@ public class TrajectoryView extends View {
             for (int r = 0; r <= MESH_HEIGHT; r++) {
                 float v = (float) r / MESH_HEIGHT;
                 float py = v * bmpH;
-                float deltaNorth = -(py - centerPxY) / ppm;
+                float deltaNorth = -(py - centerPxY) / ppm; // 像素Y向下，北方向上为正
 
                 for (int c = 0; c <= MESH_WIDTH; c++) {
                     float u = (float) c / MESH_WIDTH;
                     float px = u * bmpW;
-                    float deltaEast = (px - centerPxX) / ppm;
+                    float deltaEast = (px - centerPxX) / ppm; // 像素X向右，东方为正
 
                     // Convert geographic offset (East, North) to rocket world coordinates (X downrange, Z crossrange)
                     double xWorld = deltaNorth * cosH + deltaEast * sinH;
@@ -576,6 +583,27 @@ public class TrajectoryView extends View {
         pAxisZ.setStrokeWidth(2f * density);
         canvas.drawLine(origin.px, origin.py, zEnd.px, zEnd.py, pAxisZ);
         canvas.drawText("Z 侧偏", zEnd.px + 4f * density, zEnd.py + 4f * density, pAxisZ);
+
+        // Ground True North Compass Vector (真实地理真北指示器: 北向在世界坐标中的投影)
+        // deltaNorth = L, deltaEast = 0 -> xWorld = L * cos(Heading), zWorld = -L * sin(Heading)
+        double compassLen = Math.max(15.0, boxSize * 0.25);
+        double hRad = Math.toRadians(currentLaunchHeadingDeg);
+        double northX = compassLen * Math.cos(hRad);
+        double northZ = -compassLen * Math.sin(hRad);
+        Point2D northEnd = project3D(northX, 0, northZ, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);
+
+        Paint pNorth = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pNorth.setColor(Color.parseColor("#38BDF8"));
+        pNorth.setStrokeWidth(1.8f * density);
+        pNorth.setStyle(Paint.Style.STROKE);
+        pNorth.setPathEffect(new DashPathEffect(new float[]{4f * density, 3f * density}, 0));
+        canvas.drawLine(origin.px, origin.py, northEnd.px, northEnd.py, pNorth);
+
+        Paint pNorthText = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pNorthText.setColor(Color.parseColor("#38BDF8"));
+        pNorthText.setTextSize(9.5f * density);
+        pNorthText.setFakeBoldText(true);
+        canvas.drawText("真北 N ↑", northEnd.px + 4f * density, northEnd.py, pNorthText);
 
         // 4. Highlight: Launch Site
         drawLaunchSiteBadge(canvas, origin, density, pivotX, pivotY, pivotZ, cx, cy, scaleWorld, sinAz, cosAz, sinEl, cosEl);

@@ -112,12 +112,16 @@ public class RocketPhysics {
      */
     public static void applyBottlePreset(RocketConfig cfg, int presetId) {
         switch (presetId) {
-            case 0: // 500mL 细长轻型小可乐瓶 (试验规格)
-                cfg.specName = "500mL 试验小可乐瓶";
-                cfg.bottleVolumeL = 0.50;
-                cfg.bottleDiameterMm = 66.0;
-                cfg.dryMassG = 85.0;
-                cfg.dragCoefficient = 0.28;
+            case 0: // 500mL 双瓶体水火箭 (有效压力仓500mL + 结构段瓶体 + 软头锥 + 4片轻质尾翼)
+                cfg.specName = "500mL 双瓶体(软头+尾翼)";
+                cfg.bottleVolumeL = 0.50;           // 仅压力仓有效容积 (0.50L)
+                cfg.bottleDiameterMm = 66.0;        // 标准500mL细瓶径 (66mm)
+                // 质量分解：500mL耐压瓶身(~28g) + 前置结构套瓶与配重连接(~24g) + 软发泡EVA头锥(~18g) + 4片PP尾翼与固定环(~18g) + 喷嘴附件(~7g) = 95g
+                cfg.dryMassG = 95.0;
+                // 气动减阻：大长径比流线双瓶体(长径比>7.5) + 抛物线软质平滑头锥 - 尾翼平直切风阻力 = Cd约0.24~0.25
+                cfg.dragCoefficient = 0.25;
+                cfg.dischargeCoefficient = 0.98;
+                // 500mL容积下的最佳质量比与容积比(~33%加水量)
                 cfg.waterVolumeMl = 165.0;
                 break;
             case 1: // 1.25L 中号可乐瓶

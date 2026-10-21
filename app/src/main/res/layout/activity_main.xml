@@ -44,7 +44,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:fontFamily="monospace"
-                    android:text="v1.3.1"
+                    android:text="v1.3.2"
                     android:textColor="@color/accent_amber"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -358,8 +358,8 @@
                         android:id="@+id/rb_spec_500"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1.2"
-                        android:text="500mL试验"
+                        android:layout_weight="1.3"
+                        android:text="500mL双瓶"
                         android:textColor="@color/accent_amber"
                         android:textSize="11sp" />
 
